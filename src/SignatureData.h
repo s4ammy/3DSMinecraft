@@ -1,0 +1,236 @@
+#pragma once
+
+#include "Patches.h"
+
+namespace Mc3ds {
+    inline const std::vector<TPatchSpec> patchSpecs = {
+        {"systemHeapMainArenaReservation_633c", EWriteKind::BYTES, "000000eb1080bde8f04f2de914d04de2000000eb0040a0e1000000eb000044e0026540e20205a0e3000000eb0205a0e3000000eb0600a0e1000000eb90029fe50316a0e3", "000000ffffffffffffffffffffffffff000000ffffffffff000000ffffffffffffffffffffffffff000000ffffffffff000000ffffffffff000000ffffffffffffffffff", 32, "026540e2", "ffffffff", "1a6740e2"},
+        {"systemHeapSize_6340", EWriteKind::BYTES, "1080bde8f04f2de914d04de2000000eb0040a0e1000000eb000044e0026540e20205a0e3000000eb0205a0e3000000eb0600a0e1000000eb90029fe50316a0e3000000eb", "ffffffffffffffffffffffff000000ffffffffff000000ffffffffffffffffffffffffff000000ffffffffff000000ffffffffff000000ffffffffffffffffff000000ff", 32, "0205a0e3", "ffffffff", "1a07a0e3"},
+        {"systemHeapSize_6348", EWriteKind::BYTES, "14d04de2000000eb0040a0e1000000eb000044e0026540e20205a0e3000000eb0205a0e3000000eb0600a0e1000000eb90029fe50316a0e3000000eb84029fe5080090e5", "ffffffff000000ffffffffff000000ffffffffffffffffffffffffff000000ffffffffff000000ffffffffff000000ffffffffffffffffff000000ffffffffffffffffff", 32, "0205a0e3", "ffffffff", "1a07a0e3"},
+        {"graphicsHeapAllocationSize_6528", EWriteKind::BYTES, "0620a0e10c30a0e1000000eb300085e200f020e3000000eb145089e50c6099e50a05a0e310008de50400a0e30c008de50000a0e300a0a0e100b0a0e1585086e208008de5", "ffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0a05a0e3", "ffffffff", "0505a0e3"},
+        {"graphicsHeapAllocatorCapacity_65bc", EWriteKind::BYTES, "084085e50c4085e5104085e5144085e5580085e2184085e5544085e50610a0e10a25a0e30430a0e1044080e4080180e80500a0e1007085e5000000eb580085e200f020e3", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff", 32, "0a25a0e3", "ffffffff", "0525a0e3"},
+        {"backgroundWorkerProcessor_23414", EWriteKind::BYTES, "000000eb020110e300f020e30000001a20d08de2f081bde81cc094e514e08de20280a0e30b008ee80c00a0e10cc08de20c308de290008ce810108de260018de8000000eb", "000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ff", 32, "0280a0e3", "ffffffff", "0180a0e3"},
+        {"renderDistanceOptions_582364", EWriteKind::BYTES, "0e0000000400000006000000080000000a000000040000000600000008000000020000000300000004000000010000000200000004000000ffffffff0f0000001e000000", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "020000000300000004000000", "ffffffffffffffffffffffff", "010000000100000001000000"},
+        {"residentChunkRadius_19a37c", EWriteKind::BYTES, "9330a0e3f000cde144109fe500c09ce540009fe50020a0e33cff2fe1000094e55020a0e30510a0e1000090e5480090e5000000eb044084e2300098e5040050e10000001a", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffff000000ff", 32, "5020a0e3", "ffffffff", "2020a0e3"},
+        {"mapUpdateRadius_3924bc", EWriteKind::BYTES, "c00ab8eec00af4ee10faf1ee01004032000000eb400080e224008de508109de55000a0e3000000eb0050a0e1000096e5781190e50600a0e131ff2fe10010a0e10400a0e1", "ffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "5000a0e3", "ffffffff", "1800a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d7c4", EWriteKind::BYTES, "081080e20020a0e3f020c1e1101080e20120a0e3f020c1e1181080e20120e0e30230e0e3f020c1e1201080e20020e0e3f020c1e1281080e20020a0e3f020c1e1301080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0230e0e3", "ffffffff", "0130e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d800", EWriteKind::BYTES, "f020c1e1301080e20120a0e3f020c1e1381080e20220a0e3f020c1e1401080e20320a0e10130e0e3f020c1e1481080e20320a0e1f020c1e1501080e20020e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320a0e1", "ffffffff", "00f020e3"},
+        {"old3dsCompact25ChunkCoordinates_49d804", EWriteKind::BYTES, "301080e20120a0e3f020c1e1381080e20220a0e3f020c1e1401080e20320a0e10130e0e3f020c1e1481080e20320a0e1f020c1e1501080e20020e0e3f020c1e1581080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0130e0e3", "ffffffff", "0030e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d810", EWriteKind::BYTES, "381080e20220a0e3f020c1e1401080e20320a0e10130e0e3f020c1e1481080e20320a0e1f020c1e1501080e20020e0e3f020c1e1581080e20020a0e3f020c1e1601080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320a0e1", "ffffffff", "0120a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d81c", EWriteKind::BYTES, "401080e20320a0e10130e0e3f020c1e1481080e20320a0e1f020c1e1501080e20020e0e3f020c1e1581080e20020a0e3f020c1e1601080e20120a0e3f020c1e1681080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0020e0e3", "ffffffff", "0020a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d828", EWriteKind::BYTES, "f020c1e1481080e20320a0e1f020c1e1501080e20020e0e3f020c1e1581080e20020a0e3f020c1e1601080e20120a0e3f020c1e1681080e20220a0e3f020c1e1701080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0020a0e3", "ffffffff", "0020e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d834", EWriteKind::BYTES, "f020c1e1501080e20020e0e3f020c1e1581080e20020a0e3f020c1e1601080e20120a0e3f020c1e1681080e20220a0e3f020c1e1701080e20320a0e3f020c1e1781080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0120a0e3", "ffffffff", "0120e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d840", EWriteKind::BYTES, "f020c1e1581080e20020a0e3f020c1e1601080e20120a0e3f020c1e1681080e20220a0e3f020c1e1701080e20320a0e3f020c1e1781080e20320e0e30030e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0220a0e3", "ffffffff", "0030a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d84c", EWriteKind::BYTES, "f020c1e1601080e20120a0e3f020c1e1681080e20220a0e3f020c1e1701080e20320a0e3f020c1e1781080e20320e0e30030e0e3f020c1e1801080e20220e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320a0e3", "ffffffff", "0020e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d858", EWriteKind::BYTES, "f020c1e1681080e20220a0e3f020c1e1701080e20320a0e3f020c1e1781080e20320e0e30030e0e3f020c1e1801080e20220e0e3f020c1e1881080e20120e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320e0e3", "ffffffff", "0020a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d85c", EWriteKind::BYTES, "681080e20220a0e3f020c1e1701080e20320a0e3f020c1e1781080e20320e0e30030e0e3f020c1e1801080e20220e0e3f020c1e1881080e20120e0e3f020c1e1901080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0030e0e3", "ffffffff", "00f020e3"},
+        {"old3dsCompact25ChunkCoordinates_49d868", EWriteKind::BYTES, "701080e20320a0e3f020c1e1781080e20320e0e30030e0e3f020c1e1801080e20220e0e3f020c1e1881080e20120e0e3f020c1e1901080e20320a0e1f020c1e1981080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0220e0e3", "ffffffff", "0120a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d874", EWriteKind::BYTES, "781080e20320e0e30030e0e3f020c1e1801080e20220e0e3f020c1e1881080e20120e0e3f020c1e1901080e20320a0e1f020c1e1981080e20020a0e3f020c1e1a01080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0120e0e3", "ffffffff", "0220a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d880", EWriteKind::BYTES, "f020c1e1801080e20220e0e3f020c1e1881080e20120e0e3f020c1e1901080e20320a0e1f020c1e1981080e20020a0e3f020c1e1a01080e20120a0e3f020c1e1a81080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320a0e1", "ffffffff", "0130a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d88c", EWriteKind::BYTES, "f020c1e1881080e20120e0e3f020c1e1901080e20320a0e1f020c1e1981080e20020a0e3f020c1e1a01080e20120a0e3f020c1e1a81080e20220a0e3f020c1e1b01080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0020a0e3", "ffffffff", "0120a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d898", EWriteKind::BYTES, "f020c1e1901080e20320a0e1f020c1e1981080e20020a0e3f020c1e1a01080e20120a0e3f020c1e1a81080e20220a0e3f020c1e1b01080e20320a0e3f020c1e1b81080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0120a0e3", "ffffffff", "0020a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8a4", EWriteKind::BYTES, "f020c1e1981080e20020a0e3f020c1e1a01080e20120a0e3f020c1e1a81080e20220a0e3f020c1e1b01080e20320a0e3f020c1e1b81080e20420a0e3f020c1e1c01080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0220a0e3", "ffffffff", "0020e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8b0", EWriteKind::BYTES, "f020c1e1a01080e20120a0e3f020c1e1a81080e20220a0e3f020c1e1b01080e20320a0e3f020c1e1b81080e20420a0e3f020c1e1c01080e20320e0e30030a0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320a0e3", "ffffffff", "0120e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8bc", EWriteKind::BYTES, "f020c1e1a81080e20220a0e3f020c1e1b01080e20320a0e3f020c1e1b81080e20420a0e3f020c1e1c01080e20320e0e30030a0e3f020c1e1c81080e20220e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0420a0e3", "ffffffff", "0230a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8c8", EWriteKind::BYTES, "f020c1e1b01080e20320a0e3f020c1e1b81080e20420a0e3f020c1e1c01080e20320e0e30030a0e3f020c1e1c81080e20220e0e3f020c1e1d01080e20120e0e3f020c1e1", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0320e0e3", "ffffffff", "0020e0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8cc", EWriteKind::BYTES, "b01080e20320a0e3f020c1e1b81080e20420a0e3f020c1e1c01080e20320e0e30030a0e3f020c1e1c81080e20220e0e3f020c1e1d01080e20120e0e3f020c1e1d81080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0030a0e3", "ffffffff", "00f020e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8d8", EWriteKind::BYTES, "b81080e20420a0e3f020c1e1c01080e20320e0e30030a0e3f020c1e1c81080e20220e0e3f020c1e1d01080e20120e0e3f020c1e1d81080e20020e0e3f020c1e1e01080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0220e0e3", "ffffffff", "0020a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8e4", EWriteKind::BYTES, "c01080e20320e0e30030a0e3f020c1e1c81080e20220e0e3f020c1e1d01080e20120e0e3f020c1e1d81080e20020e0e3f020c1e1e01080e20320a0e1f020c1e1e81080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0120e0e3", "ffffffff", "0120a0e3"},
+        {"old3dsCompact25ChunkCoordinates_49d8f0", EWriteKind::BYTES, "f020c1e1c81080e20220e0e3f020c1e1d01080e20120e0e3f020c1e1d81080e20020e0e3f020c1e1e01080e20320a0e1f020c1e1e81080e20120a0e3f020c1e1f01080e2", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "0020e0e3", "ffffffff", "0220a0e3"},
+        {"old3dsCompact25ChunkBase_b809c", EWriteKind::CHUNK_BASE, "044084e2070054e10000001a085085e2080055e10000001a18d08de2f087bde800000000f8402de90060a0e1000000eb0610a0e10d00a0e1000000eb00409de50050a0e3", "ffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff00000000ffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkBase_f2d30", EWriteKind::CHUNK_BASE, "0000000a041084e2040051e2041089e500b08015000000eaffff7f7fffff7fff0000000000000000001099e50460a0e1012044e0010040e04211a0e1400151e10000002a", "000000ffffffffffffffffffffffffffffffffff000000ffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ff", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkBase_f3288", EWriteKind::CHUNK_BASE, "010055e10000000a043031e5010055e1043020e50000001a00a085e5000000ea00000000000000004311a0e1a10081e0a10180e0011081e2000051e10100a08124008de5", "ffffffff000000ffffffffffffffffffffffffff000000ffffffffff000000ff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkBase_272580", EWriteKind::CHUNK_BASE, "1cd08de20100a0e3f08fbde8000000000000000000000000000000000000000000000000981500002c10d0e5000051e30000a0130000001a000000ea1eff2fe170402de9", "ffffffffffffffffffffffff000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff000000ff000000ffffffffffffffffff", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkBase_34109c", EWriteKind::CHUNK_BASE, "000055e10000001a0400a0e1000000eb2cd08de20400a0e1f04fbde8000000ea000000000000000000000000000000000000000000000000000000000000000000000000", "ffffffff000000ffffffffff000000ffffffffffffffffffffffffff000000ff000000000000000000000000000000000000000000000000000000000000000000000000", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkBase_369ae0", EWriteKind::CHUNK_BASE, "32ff2fe10000e0e3db4e84e20010a0e1030084e80600a0e110d08de2f087bde80000000000002041ff4f2de90360a0e1028b2ded24d04de268308de260909de5900993e8", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "c8118900", "00000000", "e0118900"},
+        {"old3dsCompact25ChunkEnd_b7f20", EWriteKind::BYTES, "61696e65720a00000000000000000000f0472de90060a0e118d04de278519fe5728f85e2080055e1019a8612bc9089120000000a000096e51c1090e50600a0e131ff2fe1", "ffffffffffffffff0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffff", 32, "728f85e2", "ffffffff", "c88085e2"},
+        {"old3dsCompact25ChunkEnd_f2c54", EWriteKind::BYTES, "0530a0e1422f80e21c008de2000000eb045085e2090055e10000001ad8809fe5720f88e2000058e12c008de50000000ab0009de5318a9fed070b80e2c40080e264008de5", "ffffffffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff", 32, "720f88e2", "ffffffff", "c80088e2"},
+        {"old3dsCompact25ChunkEnd_f2f60", EWriteKind::BYTES, "028bbdec14d08de2f08fbde80000000000000000f74f2de928639fe5020b2ded720f86e2000056e1028b2ded408af0ee50d04de220008de50000000a60009de5c18a9fed", "ffffffffffffffffffffffff0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff", 32, "720f86e2", "ffffffff", "c80086e2"},
+        {"old3dsCompact25ChunkEnd_340a94", EWriteKind::BYTES, "0030a0e3000000eb030092e101b0a0e30000001a0c569fe50ca69fe51a9e84e2728f85e2080055e108608512080056110000000a050046e0c0718be0000057e3000000ca", "ffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffff000000ff", 32, "728f85e2", "ffffffff", "c88085e2"},
+        {"old3dsCompact25ChunkEnd_3698e4", EWriteKind::BYTES, "31ff2fe1060050e1000000ca081084e208008de2000000ebfc519fe50060a0e3729f85e2090055e10000000ac40d94e5100090e50020a0e108009de50a0095e80cc09de5", "ffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "729f85e2", "ffffffff", "c89085e2"},
+        {"old3dsCompact25ChunkRandomCount_2724f4", EWriteKind::BYTES, "9c0190e500008de5081085e208008de2000000eb90509fe51a0e84e2000000eb3910a0e300f020e3000000eb810185e008109de5003090e50c209de5040090e5031081e0", "ffffffffffffffffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "3910a0e3", "ffffffff", "1910a0e3"},
+        {"old3dsCompact25ChunkCompletionCount_773a8", EWriteKind::BYTES, "b80bd5e1020050e30000000a040050e30000000a000000eab40095e5000000eb727080e2b40095e5000000eb0080a0e1b40095e5000000eb107a00ee000048e0008086e0", "ffffffffffffffff000000ffffffffff000000ff000000ffffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffff", 32, "727080e2", "ffffffff", "327080e2"},
+        {"old3dsCirclePadCameraHook_8744", EWriteKind::INPUT_HOOK, "0500a0e1000000eb0400a0e100f020e3dc02d0e1000050e300f020e30000000a140095e5169e85e2084090e5000054e10000000a103094e50920a0e10710a0e10500a0e1", "ffffffff000000ffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffff", 32, "140095e5", "ffffffff", "b2de15ea"},
+        {"bindGameplayUseToB_26f6c8", EWriteKind::BYTES, "04008de2000000fa18208de2261e8fe204008de2000000fa480ab0ee0020a0e10330a0e30510a0e10600a0e1000000eb04008de2000000fa18208de2931f8fe204008de2", "ffffffff000000ffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff000000ffffffffff000000ffffffffffffffffffffffffff", 32, "0330a0e3", "ffffffff", "0130a0e3"},
+        {"bindGameplayDropToSyntheticL_26dc18", EWriteKind::BYTES, "0d00a0e1000000fa04208de270108fe20d00a0e1000000fa480ab0ee0020a0e10130a0e30410a0e10500a0e1000000eb0d00a0e1000000fa04208de24c108fe20d00a0e1", "ffffffff000000ffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff000000ffffffffff000000ffffffffffffffffffffffffff", 32, "0130a0e3", "ffffffff", "0330a0e3"},
+        {"initializeControlsLatchBss_44", EWriteKind::BSS_END, "14009fe514109fe50020a0e3010050e1042080340000003a1eff2fe10000000000000000f7b50f000026009c2578641c002d05d0fcf1d0ef0068405dc007f5d12b2d02d0", "ffffffffffffffffffffffffffffffffffffffff000000ffffffffff0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32, "90b28c00", "00000000", "a0b28c00"},
+        {"connectControllerAfterNativeHidSample_b608", EWriteKind::NATIVE_HID, "780080e2000000eb161e84e2b80084e2000000eb000050e300f020e30000000a2030a0e310208de25e1f84e2b80084e210508de5000000eb00f020e300f020e3000000eb020050e300f020e30000000a000000eb000050e300f020e30000001a0810a0e30000a0e3000000eb020110e300f020e30000001a0110a0e30600a0e1000000eb", "ffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ff000000ffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ffffffffffffffffff000000ff", 64, "de1800eb", "000000ff", "0c0000ea"},
+        {"defaultTransparentLeavesOff_394954", EWriteKind::BYTES, "6060c4e5f8119fe5000090e5040090e5640084e51a8a84ed6c70c4e56d60c4e56f70c4e56e70c4e5d070c4e51461c4e5460f84e27060c4e5000000facf70c4e5398ac4ed", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffff", 32, "6f70c4e5", "ffffffff", "6f60c4e5"},
+        {"defaultFancyGraphicsOff_394958", EWriteKind::BYTES, "f8119fe5000090e5040090e5640084e51a8a84ed6c70c4e56d60c4e56f70c4e56e70c4e5d070c4e51461c4e5460f84e27060c4e5000000facf70c4e5398ac4ed3a8a84ed", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffff", 32, "6e70c4e5", "ffffffff", "6e60c4e5"},
+        {"defaultFancySkiesOff_39495c", EWriteKind::BYTES, "000090e5040090e5640084e51a8a84ed6c70c4e56d60c4e56f70c4e56e70c4e5d070c4e51461c4e5460f84e27060c4e5000000facf70c4e5398ac4ed3a8a84edf360c4e5", "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffff", 32, "d070c4e5", "ffffffff", "d060c4e5"},
+        {"ignoreSavedFancyGraphics_3965b4", EWriteKind::BYTES, "000000ea30189fe50600a0e1000000eb000050e30000000a6e1084e20500a0e1000000eb000000ea10189fe50600a0e1000000eb000050e30000000a6f1084e20500a0e1", "000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff000000ff000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff", 32, "0d0600eb", "000000ff", "00f020e3"},
+        {"ignoreSavedTransparentLeaves_3965d8", EWriteKind::BYTES, "000000ea10189fe50600a0e1000000eb000050e30000000a6f1084e20500a0e1000000eb000000eaf0179fe50600a0e1000000eb000050e30000000ad01084e20500a0e1", "000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff000000ff000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff", 32, "040600eb", "000000ff", "00f020e3"},
+        {"ignoreSavedFancySkies_3965fc", EWriteKind::BYTES, "000000eaf0179fe50600a0e1000000eb000050e30000000ad01084e20500a0e1000000eb000000ead0179fe50600a0e1000000eb000050e30000000ab01084e20500a0e1", "000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff000000ff000000ffffffffffffffffff000000ffffffffff000000ffffffffffffffffff", 32, "fb0500eb", "000000ff", "00f020e3"},
+        {"showPerformanceOverlay_9de54", EWriteKind::BYTES, "000000fa040094e5500190e500f020e300f020e3d409d0e1000050e300f020e30000000a14719fe518819fe5448adfed0000d7e5000050e30c019fe500a090e50000000a", "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000ff", 32, "d500000a", "000000ff", "00f020e3"},
+    };
+
+    inline const std::string systemProfileHash = "d87ed88acad71ac9c05e55544ef7938f1ec0208da01bb3ea3c22ce8bff6dc8ad";
+    inline const std::string controlsPayloadHex = "040057e32200002a162e85e2080092e584309fe5073183e000c093e5020b10e300c0a003020c10e302cb001200c083e5023cc0e300005ce3023bc31302cc00120c308311083082e5020c10e31000000a0f32c3e3083082e5a630a0e3f0c0d2e1930c0ce000005ce3ffc08cb24cc4a0e1b4c0c2e1f2c0d2e1930c0ce000005ce3ffc08cb24cc4a0e1b6c0c2e100c0a0e300c082e5140095e50421eaea90b28c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    inline const std::string legacyCameraPayloadHex = "162e85e2083092e5020c13e31100000a023cc3e30f32c3e3083082e5a630a0e3f0c0d2e1930c0ce000005ce3ffc08cb24cc4a0e1b4c0c2e1f2c0d2e1930c0ce000005ce3ffc08cb24cc4a0e1b6c0c2e100c0a0e300c082e5140095e53421eaea";
+    inline const std::string rebuildTemplate = R"MC3DS(BasicInfo:
+  Title: Proteus
+  ProductCode: @PRODUCT_CODE@
+  Logo: Nintendo
+
+TitleInfo:
+  Category: Application
+  UniqueId: @UNIQUE_ID@
+
+Option:
+  UseOnSD: true
+  FreeProductCode: true
+  MediaFootPadding: false
+  EnableCrypt: false
+  EnableCompress: true
+
+AccessControlInfo:
+  CoreVersion: 2
+  Priority: 16
+  MaxCpu: 158
+  IdealProcessor: 0
+  AffinityMask: 1
+  SystemMode: 80MB
+  SystemModeExt: Legacy
+  CpuSpeed: 268mhz
+  EnableL2Cache: false
+  CanAccessCore2: false
+  MemoryType: application
+  ResourceLimitCategory: application
+  UseExtSaveData: true
+  ExtSaveDataId: @UNIQUE_ID@
+  HandleTableSize: 0x200
+  ReleaseKernelMajor: 2
+  ReleaseKernelMinor: 51
+  DescVersion: 3
+  ServiceAccessControl:
+    - "$hioFIO"
+    - "$hostio0"
+    - "$hostio1"
+    - "cfg:u"
+    - "fs:USER"
+    - "gsp::Gpu"
+    - "hid:USER"
+    - "ndm:u"
+    - "pxi:dev"
+    - "APT:A"
+    - "ac:u"
+    - "act:u"
+    - "am:app"
+    - "boss:U"
+    - "cam:u"
+    - "cecd:u"
+    - "dlp:FKCL"
+    - "dlp:SRVR"
+    - "dsp::DSP"
+    - "frd:u"
+    - "http:C"
+    - "ir:USER"
+    - "ldr:ro"
+    - "mic:u"
+    - "news:u"
+    - "nfc:u"
+    - "nim:aoc"
+    - "nwm::UDS"
+    - "ptm:u"
+    - "qtm:u"
+    - "soc:U"
+    - "ssl:C"
+    - "y2r:u"
+  IORegisterMapping:
+    - 1FF50000-1FF57FFF
+    - 1FF70000-1FF77FFF
+  MemoryMapping:
+    - 1F000000-1F5FFFFF:r
+  SystemCallAccess:
+    ControlMemory: 0x01
+    QueryMemory: 0x02
+    ExitProcess: 0x03
+    GetProcessIdealProcessor: 0x06
+    CreateThread: 0x08
+    ExitThread: 0x09
+    SleepThread: 0x0A
+    GetThreadPriority: 0x0B
+    SetThreadPriority: 0x0C
+    GetThreadIdealProcessor: 0x0F
+    GetCurrentProcessorNumber: 0x11
+    CreateMutex: 0x13
+    ReleaseMutex: 0x14
+    CreateSemaphore: 0x15
+    ReleaseSemaphore: 0x16
+    CreateEvent: 0x17
+    SignalEvent: 0x18
+    ClearEvent: 0x19
+    CreateTimer: 0x1A
+    SetTimer: 0x1B
+    CancelTimer: 0x1C
+    ClearTimer: 0x1D
+    CreateMemoryBlock: 0x1E
+    MapMemoryBlock: 0x1F
+    UnmapMemoryBlock: 0x20
+    CreateAddressArbiter: 0x21
+    ArbitrateAddress: 0x22
+    CloseHandle: 0x23
+    WaitSynchronization1: 0x24
+    WaitSynchronizationN: 0x25
+    DuplicateHandle: 0x27
+    GetSystemTick: 0x28
+    GetHandleInfo: 0x29
+    GetSystemInfo: 0x2A
+    GetProcessInfo: 0x2B
+    GetThreadInfo: 0x2C
+    ConnectToPort: 0x2D
+    SendSyncRequest1: 0x2E
+    SendSyncRequest2: 0x2F
+    SendSyncRequest3: 0x30
+    SendSyncRequest4: 0x31
+    SendSyncRequest: 0x32
+    GetProcessId: 0x35
+    GetProcessIdOfThread: 0x36
+    GetThreadId: 0x37
+    GetResourceLimit: 0x38
+    GetResourceLimitLimitValues: 0x39
+    GetResourceLimitCurrentValues: 0x3A
+    GetThreadContext: 0x3B
+    Break: 0x3C
+    OutputDebugString: 0x3D
+
+SystemControlInfo:
+  SaveDataSize: 0K
+  RemasterVersion: 0
+  StackSize: 0x40000
+  Dependency:
+    ac: 0x0004013000002402
+    act: 0x0004013000003802
+    am: 0x0004013000001502
+    boss: 0x0004013000003402
+    camera: 0x0004013000001602
+    cecd: 0x0004013000002602
+    cfg: 0x0004013000001702
+    codec: 0x0004013000001802
+    csnd: 0x0004013000002702
+    dlp: 0x0004013000002802
+    dsp: 0x0004013000001a02
+    friends: 0x0004013000003202
+    gpio: 0x0004013000001b02
+    gsp: 0x0004013000001c02
+    hid: 0x0004013000001d02
+    http: 0x0004013000002902
+    i2c: 0x0004013000001e02
+    ir: 0x0004013000003302
+    mcu: 0x0004013000001f02
+    mic: 0x0004013000002002
+    ndm: 0x0004013000002b02
+    news: 0x0004013000003502
+    nfc: 0x0004013000004002
+    nim: 0x0004013000002c02
+    nwm: 0x0004013000002d02
+    pdn: 0x0004013000002102
+    ps: 0x0004013000003102
+    ptm: 0x0004013000002202
+    qtm: 0x0004013020004202
+    ro: 0x0004013000003702
+    socket: 0x0004013000002e02
+    spi: 0x0004013000002302
+    ssl: 0x0004013000002f02
+)MC3DS";
+}

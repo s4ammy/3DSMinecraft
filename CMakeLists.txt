@@ -1,0 +1,45 @@
+cmake_minimum_required(VERSION 3.22)
+project(MinecraftOld3dsPatcher VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_library(patcherCore src/Bytes.cpp src/Platform.cpp src/Signature.cpp src/Patches.cpp)
+target_include_directories(patcherCore PUBLIC src)
+find_package(Threads REQUIRED)
+target_link_libraries(patcherCore PUBLIC Threads::Threads)
+if(WIN32)
+    target_link_libraries(patcherCore PUBLIC bcrypt)
+    target_compile_definitions(patcherCore PUBLIC UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+else()
+    find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+    target_link_libraries(patcherCore PUBLIC OpenSSL::Crypto)
+endif()
+if(MSVC)
+    target_compile_options(patcherCore PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(patcherCore PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
+endif()
+
+add_executable(mc3ds-patcher src/main.cpp src/Pipeline.cpp)
+target_link_libraries(mc3ds-patcher PRIVATE patcherCore)
+if(MINGW)
+    target_link_options(mc3ds-patcher PRIVATE -municode -static -static-libgcc -static-libstdc++)
+endif()
+
+install(TARGETS mc3ds-patcher RUNTIME DESTINATION .)
+install(FILES README.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md THIRD_PARTY.md LICENSE DESTINATION .)
+
+option(MC3DS_FETCH_TOOLS "Download the pinned upstream CIA utilities beside the patcher" OFF)
+if(MC3DS_FETCH_TOOLS)
+    if(WIN32)
+        set(MC3DS_TOOL_PLATFORM windows)
+    else()
+        set(MC3DS_TOOL_PLATFORM linux)
+    endif()
+    add_custom_command(TARGET mc3ds-patcher POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -DTOOL_PLATFORM=${MC3DS_TOOL_PLATFORM}
+        -DDESTINATION=$<TARGET_FILE_DIR:mc3ds-patcher>/tools
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchTools.cmake VERBATIM)
+endif()
