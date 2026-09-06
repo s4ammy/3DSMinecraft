@@ -46,7 +46,7 @@ std::string Mc3ds::NormalizedSystemProfile(TBytes exheader) {
 
 Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar) {
     const auto inputHash = Sha256(code);
-    Require(inputHash != patchedCodeHash, "This executable is already patched");
+    Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash, "This executable is already patched; start with an original CIA");
 
     const auto known = inputHash == testedCodeHash;
     Require(known || allowSimilar, "Unrecognized executable SHA-256: " + inputHash + ". Use --allow-similar to try the guarded signature profile; compatibility is not guaranteed.");
@@ -81,8 +81,9 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
 
     const auto cave = CheckedAdd(textSize, 3) & ~3U;
     const auto controlsOffset = CheckedAdd(cave, 0x84);
-    const auto caveEnd = CheckedAdd(controlsOffset, 0x100);
-    Require(caveEnd <= RoundPage(textSize), "No room for the input hook in text padding");
+    const auto pickupOffset = CheckedAdd(controlsOffset, 0x100);
+    const auto caveEnd = CheckedAdd(pickupOffset, 0x18);
+    Require(caveEnd <= RoundPage(textSize), "No room for the input and pickup hooks in text padding");
     RequireRange(code.size(), textSize, RoundPage(textSize) - textSize);
     Require(std::all_of(code.begin() + textSize, code.begin() + RoundPage(textSize),
                 [](auto value) {
@@ -101,6 +102,7 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     auto chunkReferences = std::set<std::size_t>{};
     auto chunkBase = std::uint32_t{0};
     auto hookOffset = std::size_t{0};
+    auto pickupHookOffset = std::size_t{0};
     auto startupEndOffset = std::size_t{0};
     auto claimed = std::set<std::size_t>{};
     for (const auto &spec : patchSpecs) {
@@ -123,6 +125,8 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
             chunkReferences.insert(offset);
         } else if (spec.kind == EWriteKind::INPUT_HOOK) {
             hookOffset = offset;
+        } else if (spec.kind == EWriteKind::PICKUP_HOOK) {
+            pickupHookOffset = offset;
         } else if (spec.kind == EWriteKind::BSS_END) {
             startupEndOffset = offset;
             Require(offset >= 4 && Read32(code, offset - 4) == bssStart && Read32(code, offset) == bssEnd,
@@ -138,7 +142,7 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
         locations.push_back({&spec, offset});
     }
 
-    Require(hookOffset != 0 && startupEndOffset != 0 && chunkReferences.size() == 6, "Incomplete patch profile");
+    Require(hookOffset != 0 && pickupHookOffset != 0 && startupEndOffset != 0 && chunkReferences.size() == 6, "Incomplete patch profile");
     Require(chunkBase >= bssStart && static_cast<std::uint64_t>(chunkBase) + 0x200 <= bssEnd,
         "Chunk table is not in the expected BSS allocation");
 
@@ -150,6 +154,19 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     }
 
     Require(allChunkReferences == chunkReferences, "Unrecognized chunk-table references; refusing a partial patch");
+
+    const auto pickupLoopOffset = FindUnique(code, pickupTickSignature);
+    Require(pickupLoopOffset + pickupTickSignature.bytes.size() <= textSize, "Pickup loop is outside executable text");
+    const auto pickupHookAddress = CheckedAdd(textAddress, static_cast<std::uint32_t>(pickupHookOffset));
+    const auto pickupResumeAddress = ArmBranchTarget(Read32(code, pickupHookOffset), pickupHookAddress);
+    Require(pickupResumeAddress == CheckedAdd(pickupHookAddress, 0x1c), "Unexpected pickup tick continuation");
+    const auto particleTickAddress = ArmBranchTarget(Read32(code, pickupHookOffset + 0x18), CheckedAdd(pickupHookAddress, 0x18));
+    Require(particleTickAddress >= textAddress &&
+            CheckedAdd(particleTickAddress, 0x164) == CheckedAdd(textAddress, static_cast<std::uint32_t>(pickupLoopOffset)),
+        "Pickup loop does not belong to the called particle tick");
+    const auto particleTickOffset = particleTickAddress - textAddress;
+    Require(Read32(code, particleTickOffset) == 0xe92d4ff8 && Read32(code, particleTickOffset + 4) == 0xe1a08000,
+        "Particle tick stack frame differs from the pickup hook");
 
     auto result = TPatchResult{code, exheader, icon, {}, known};
     auto report = std::ostringstream{};
@@ -167,6 +184,9 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
         } else if (spec.kind == EWriteKind::NATIVE_HID) {
             const auto source = CheckedAdd(textAddress, static_cast<std::uint32_t>(offset));
             Write32(result.code, offset, ArmBranch(source, CheckedAdd(source, 0x38)));
+        } else if (spec.kind == EWriteKind::PICKUP_HOOK) {
+            //Keep the original EQ condition so full graphics retains its normal tick.
+            Write32(result.code, offset, ArmBranch(pickupHookAddress, CheckedAdd(textAddress, pickupOffset)) & 0x0fffffffU);
         } else {
             const auto after = FromHex(spec.afterHex);
             Require(after.size() == FromHex(spec.beforeHex).size(), "Patch must preserve instruction size");
@@ -178,13 +198,18 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
 
     auto legacy = FromHex(legacyCameraPayloadHex);
     auto controls = FromHex(controlsPayloadHex);
+    auto pickup = FromHex(pickupPayloadHex);
     Require(legacy.size() == 0x60 && controls.size() == 0x100, "Invalid input payload size");
+    Require(pickup.size() == 0x18, "Invalid pickup payload size");
     const auto resumeAddress = CheckedAdd(textAddress, static_cast<std::uint32_t>(hookOffset + 4));
     Write32(legacy, 0x5c, ArmBranch(CheckedAdd(textAddress, cave + 0x5c), resumeAddress));
     Write32(controls, 0x98, ArmBranch(CheckedAdd(textAddress, controlsOffset + 0x98), resumeAddress));
     Write32(controls, 0x9c, bssEnd);
+    Write32(pickup, 0x10, ArmBranch(CheckedAdd(textAddress, pickupOffset + 0x10), CheckedAdd(textAddress, static_cast<std::uint32_t>(pickupLoopOffset))));
+    Write32(pickup, 0x14, pickupResumeAddress);
     std::copy(legacy.begin(), legacy.end(), result.code.begin() + cave);
     std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
+    std::copy(pickup.begin(), pickup.end(), result.code.begin() + pickupOffset);
     Write32(result.exheader, 0x3c, CheckedAdd(bssSize, 16));
     result.exheader[0x20c] = 0;
     result.exheader[0x20d] = 0;
@@ -192,8 +217,10 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     Write32(result.exheader, 0x394, 0xff000101);
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
-    Require(!known || outputHash == patchedCodeHash, "Known executable did not reproduce the hardware-tested code");
+    Require(!known || outputHash == patchedCodeHash, "Known executable did not reproduce the verified pickup-fixed code");
     report << "Hook storage: code+0x" << HexNumber(cave) << "\n";
+    report << "Pickup hook storage: code+0x" << HexNumber(pickupOffset) << "\n";
+    report << "Pickup animations tick and expire with low graphics enabled.\n";
     report << "Input latch: 0x" << HexNumber(bssEnd) << " (16 bytes, no extra page)\n";
     report << "Patched executable SHA-256: " << outputHash << "\n";
     result.report = report.str();

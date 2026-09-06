@@ -333,7 +333,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
 
     const auto outputHash = Sha256File(work / "output.cia");
     auto report = std::ostringstream{};
-    report << "Minecraft Old 3DS Patcher 0.1.0\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
+    report << "Minecraft Old 3DS Patcher 0.1.1\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
            << patched.report << "Input file unchanged. Package hashes and re-extracted payload verified.\n"
            << "Unencrypted CFW package. Ticket/TMD version restored after test-key signing. Retail signatures are invalid.\n"
            << "Main application only, matching the tested patch profile. No electronic manual content is rebuilt.\n"

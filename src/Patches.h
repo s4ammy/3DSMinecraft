@@ -5,14 +5,16 @@
 namespace Mc3ds {
     inline const std::string testedCiaHash = "ebd865c5656be81ed2faf3122eec5d8c93b069e4ad211f3596b879f9f78abfe3";
     inline const std::string testedCodeHash = "a4e5972ee52adfc316606f6edba7d19228eba0fe9e828d9584acc752c876650b";
-    inline const std::string patchedCodeHash = "d484dbb3211d7bc2d48b28bef0a1aba3b38db34a058daaabd74b5c983b791f81";
+    inline const std::string previousPatchedCodeHash = "d484dbb3211d7bc2d48b28bef0a1aba3b38db34a058daaabd74b5c983b791f81";
+    inline const std::string patchedCodeHash = "c2ed3f1670cab5b461c29758a7bdb0cd0b00dd1105553f2f37cc0a1c1f71af6f";
 
     enum class EWriteKind {
         BYTES,
         CHUNK_BASE,
         BSS_END,
         INPUT_HOOK,
-        NATIVE_HID
+        NATIVE_HID,
+        PICKUP_HOOK
     };
 
     struct TPatchSpec {

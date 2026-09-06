@@ -9,7 +9,7 @@ namespace Mc3ds {
 }
 
 void Mc3ds::PrintHelp() {
-    std::cout << "Minecraft Old 3DS Patcher 0.1.0\n\n"
+    std::cout << "Minecraft Old 3DS Patcher 0.1.1\n\n"
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
                  "  -o, --output FILE       Output CIA (default: input-old3ds.cia)\n"
                  "  --tools-dir DIRECTORY   Folder containing ctrtool and makerom\n"
