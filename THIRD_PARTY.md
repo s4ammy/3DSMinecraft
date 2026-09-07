@@ -8,4 +8,6 @@ The download script checks pinned archive hashes in `cmake/FetchTools.cmake`. To
 
 Keep `ctrtool` and `makerom` in a `tools` folder beside the patcher, or use `--tools-dir`. Moving the patcher or running `cmake --install` does not move these tools automatically.
 
-Dependencies retain their own licences. If you redistribute their binaries, include the notices required by the upstream projects and their dependencies. The patcher's MIT licence does not cover Minecraft or these tools.
+Release packages include the utilities, their upstream source archives under `tools/sources`, and notices under `licenses`. Makerom's bundled BLZ code uses GPLv3 or later; the complete tagged source and GPL text accompany the binary. Preserve these when redistributing the packages.
+
+Dependencies retain their own licences. The patcher's MIT licence does not cover Minecraft or these tools.

@@ -9,7 +9,7 @@ namespace Mc3ds {
 }
 
 void Mc3ds::PrintHelp() {
-    std::cout << "Minecraft Old 3DS Patcher 0.2.0\n\n"
+    std::cout << "Minecraft Old 3DS Patcher " MC3DS_VERSION "\n\n"
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
                  "  -o, --output FILE       Output CIA (default depends on control mode)\n"
                  "  --controls MODE        l-circle-pad (default) or circle-pad-pro\n"

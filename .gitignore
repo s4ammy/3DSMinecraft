@@ -25,3 +25,5 @@
 *.log
 *.report.txt
 seeddb*
+__pycache__/
+*.pyc

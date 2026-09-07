@@ -4,11 +4,11 @@ Patches Minecraft: New Nintendo 3DS Edition to run on the original 3DS, with low
 
 Version 0.2.0 adds `--controls circle-pad-pro`. The default L + Circle Pad mode produces the same executable as 0.1.1, and both modes include the dropped-item pickup correction. Rebuild the patcher and patch your original CIA again to change modes. Already-patched CIAs are not accepted.
 
-You need your own CIA and a console running CFW. No game files, keys, or seeds are included. This guide builds the patcher, downloads the title seed separately, and creates a patched CIA.
+You need your own CIA and a console running CFW. No game files, keys, or seeds are included. This guide gets the patcher, downloads the title seed separately, and creates a patched CIA.
 
 ## Before you start
 
-- Use a 64-bit x86 Windows or Linux PC with CMake 3.22 or newer and a C++17 compiler.
+- Use a 64-bit x86 Windows or Linux PC. Building from source also needs CMake 3.22 or newer and a C++17 compiler.
 - Allow about 3 GB of free space on the PC's temporary drive plus 500 MB for the output, in addition to the original CIA and build tools.
 - Start with an original base-game CIA. Updates, DLC, and already-patched executables are not supported.
 - The console needs CFW with signature patches. The output will not work on stock firmware.
@@ -25,18 +25,20 @@ Only this input has been verified:
 
 See [compatibility and hashes](COMPATIBILITY.md) for the reference CIA's SHA-256 and testing limitations. Other versions and regions are unverified, and the seed URL below is specifically for this European title.
 
-## 1. Get the source
+## 1. Get the patcher
 
-On this repository's GitHub page, choose **Code > Download ZIP** and extract it. Alternatively, if Git is installed:
+Download the Linux `.tar.gz` or Windows `.zip` from [Releases](https://github.com/s4ammy/3DSMinecraft/releases), extract it, and open a terminal in the extracted folder. Keep the `tools` folder beside the executable. Release builds target Ubuntu 24.04 or newer and Windows 10/11, both x64. Linux needs the OpenSSL 3 runtime (`libssl3t64` on Ubuntu 24.04).
+
+With a release package, skip to step 3. To build from source instead, choose **Code > Download ZIP** on this repository's GitHub page and extract it, or clone the repository:
 
 ```sh
 git clone https://github.com/s4ammy/3DSMinecraft.git
 cd 3DSMinecraft
 ```
 
-Run all remaining PC commands from the extracted or cloned folder containing `CMakeLists.txt`. Follow the commands for your operating system only.
+Run the build commands below from the extracted or cloned folder containing `CMakeLists.txt`. Follow the commands for your operating system only.
 
-## 2. Build the patcher
+## 2. Build from source (optional)
 
 ### Linux
 
@@ -52,9 +54,10 @@ Build the patcher:
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMC3DS_FETCH_TOOLS=ON
 cmake --build build
+cd build
 ```
 
-The executable is `build/mc3ds-patcher`.
+The executable is `mc3ds-patcher` in the build folder.
 
 ### Windows
 
@@ -64,9 +67,10 @@ Install Visual Studio 2022 Build Tools with the **Desktop development with C++**
 cd "C:\path\to\3DSMinecraft"
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DMC3DS_FETCH_TOOLS=ON
 cmake --build build --config Release
+cd build\Release
 ```
 
-Replace the example folder with your actual path. The executable is `build\Release\mc3ds-patcher.exe`. The download commands below use `curl.exe`, available on current Windows 10 and Windows 11 installations, rather than PowerShell's `curl` alias.
+Replace the example folder with your actual path. The executable is `mc3ds-patcher.exe` in the `build\Release` folder. The download commands below use `curl.exe`, available on current Windows 10 and Windows 11 installations, rather than PowerShell's `curl` alias.
 
 ### Required CIA tools
 
@@ -76,7 +80,7 @@ MinGW-w64 is also supported. To supply the utilities yourself, leave `MC3DS_FETC
 
 ## 3. Prepare your CIA and title seed
 
-Copy your original CIA into the source folder and name the copy `Minecraft.cia`, or substitute its actual quoted path in the commands below. The patcher leaves its input untouched.
+Run the remaining PC commands from the folder containing the patcher executable. Copy your original CIA into that folder and name the copy `Minecraft.cia`, or substitute its actual quoted path in the commands below. The patcher leaves its input untouched.
 
 The encrypted reference CIA requires a raw 16-byte title seed. Download it separately from Nintendo using this exact URL:
 
@@ -130,13 +134,13 @@ First, run an optional dry run. This decrypts the input, verifies its integrity,
 ### Linux
 
 ```sh
-./build/mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" --dry-run
+./mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" --dry-run
 ```
 
 ### Windows PowerShell
 
 ```powershell
-.\build\Release\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" --dry-run
+.\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" --dry-run
 ```
 
 If it finishes with `Dry run passed. No output CIA was written.`, build the patched CIA:
@@ -144,16 +148,16 @@ If it finishes with `Dry run passed. No output CIA was written.`, build the patc
 ### Linux
 
 ```sh
-./build/mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" -o "Minecraft-old3ds.cia"
+./mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" -o "Minecraft-old3ds.cia"
 ```
 
 ### Windows PowerShell
 
 ```powershell
-.\build\Release\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" -o "Minecraft-old3ds.cia"
+.\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" -o "Minecraft-old3ds.cia"
 ```
 
-The patcher decrypts, decompresses, patches, rebuilds, and verifies the CIA automatically. Wait for the final `Done:` message. With these commands, the source folder will contain:
+The patcher decrypts, decompresses, patches, rebuilds, and verifies the CIA automatically. Wait for the final `Done:` message. With these commands, the current folder will contain:
 
 - `Minecraft-old3ds.cia`: the patched, unencrypted CIA for installation on CFW.
 - `Minecraft-old3ds.cia.report.txt`: hashes, title information, and patch verification results.
@@ -163,13 +167,13 @@ It refuses to overwrite either an existing output CIA or its report. For another
 For example, build CPP mode on Linux with:
 
 ```sh
-./build/mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
+./mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
 ```
 
 Or on Windows:
 
 ```powershell
-.\build\Release\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
+.\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
 ```
 
 Without `-o`, the default filenames end in `-old3ds.cia` or `-old3ds-circle-pad-pro.cia`, depending on the mode. The report records your choice. Install the output you selected in the next step.
@@ -211,6 +215,25 @@ If you accept an unverified connection for this seed download, repeat the downlo
 | Dropped items enter the inventory but remain visible on the ground | Rebuild patcher version 0.1.1 or later, patch an original CIA, and install the new output. The correction keeps pickup animations updating with low graphics enabled. |
 
 For other builds, `--allow-similar` attempts signature matching with strict checks in L + Circle Pad mode, but compatibility is not guaranteed. CPP mode requires the exact supported executable. This option does not make the European seed valid for another title. Run the patcher with `--help` to list all options.
+
+## Automatic builds and releases
+
+GitHub Actions builds Linux and Windows packages on pushes, pull requests, and manual runs. Pushing a version tag publishes both packages and `SHA256SUMS.txt` as a release after both builds and their packaged startup checks pass. The tag must match the version in `CMakeLists.txt`:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Push the committed project first. Tags such as `v0.2.0-rc1` create prereleases. The workflow uses GitHub's built-in token; no personal token is needed. An already-published release is left intact; use a new version tag for another release. See [GitHub's tag triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#using-filters-to-target-specific-branches-or-tags-for-push-events).
+
+To package a local build with Python 3.9 or newer, run this from the source folder after building with `MC3DS_FETCH_TOOLS=ON`:
+
+```sh
+python scripts/packageRelease.py --platform linux --binary-dir build --version v0.2.0
+```
+
+On Windows, use `--platform windows --binary-dir build/Release`. Packages and their `.sha256` files are written to `dist`. Each package includes the patcher, helper tools, documentation, upstream source archives, and licence notices.
 
 ## Licence
 
