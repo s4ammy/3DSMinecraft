@@ -206,7 +206,8 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("Input must be a regular CIA file");
     }
 
-    auto output = options.output.empty() ? input.parent_path() / (input.stem().u8string() + "-old3ds.cia") : std::filesystem::absolute(options.output);
+    const auto suffix = options.controlMode == EControlMode::CIRCLE_PAD_PRO ? "-old3ds-circle-pad-pro.cia" : "-old3ds.cia";
+    auto output = options.output.empty() ? input.parent_path() / (input.stem().u8string() + suffix) : std::filesystem::absolute(options.output);
     output = std::filesystem::weakly_canonical(output);
     const auto reportPath = std::filesystem::path(output.native() + std::filesystem::path(".report.txt").native());
     if (output == input || (!options.dryRun && (std::filesystem::exists(output) || std::filesystem::exists(reportPath)))) {
@@ -280,7 +281,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     const auto originalRomfsHash = Sha256File(work / "romfs.bin");
     std::cout << "Scanning and checking the complete patch profile..." << std::endl;
     const auto patched = PatchGame(ReadFile(work / "exefs/code.bin"), exheader,
-        ReadFile(work / "exefs/icon.bin"), options.allowSimilar);
+        ReadFile(work / "exefs/icon.bin"), options.allowSimilar, options.controlMode);
     std::cout << patched.report;
     if (options.dryRun) {
         std::cout << "Dry run passed. No output CIA was written.\n";
@@ -333,7 +334,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
 
     const auto outputHash = Sha256File(work / "output.cia");
     auto report = std::ostringstream{};
-    report << "Minecraft Old 3DS Patcher 0.1.1\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
+    report << "Minecraft Old 3DS Patcher 0.2.0\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
            << patched.report << "Input file unchanged. Package hashes and re-extracted payload verified.\n"
            << "Unencrypted CFW package. Ticket/TMD version restored after test-key signing. Retail signatures are invalid.\n"
            << "Main application only, matching the tested patch profile. No electronic manual content is rebuilt.\n"

@@ -1,6 +1,8 @@
 # Controls
 
-## Gameplay
+Choose `--controls l-circle-pad` (the default) or `--controls circle-pad-pro` when patching an original CIA. There is no in-game mode switch.
+
+## L + Circle Pad: gameplay
 
 | Input | Action |
 | --- | --- |
@@ -24,7 +26,7 @@ L + B and L + R work while aiming. You cannot walk and look with the Circle Pad 
 
 Press L before Y to drop. Y stays suppressed until released so crafting does not open when you let go of L. Use this shortcut only during gameplay.
 
-## Menus and inventory
+## L + Circle Pad: menus and inventory
 
 | Input | Action |
 | --- | --- |
@@ -38,5 +40,27 @@ Press L before Y to drop. Y stays suppressed until released so crafting does not
 | Touchscreen | Select buttons, tabs, items, and slots. No new touchscreen camera gesture is added. |
 
 Button hints are unchanged: gameplay hints showing L for Use now mean B; B for Drop now means L + Y. The electronic manual is not included.
+
+## Circle Pad Pro
+
+CPP mode keeps the game's original button bindings. The left Circle Pad and accessory right pad work independently, so you can walk and look at the same time.
+
+| Input | Action |
+| --- | --- |
+| Circle Pad | Walk or strafe. |
+| Accessory right pad | Look around. |
+| L | Place/use/interact. Previous category where supported in menus. |
+| R | Attack or break blocks. |
+| B | Drop in gameplay; back/cancel in menus. |
+| ZL / ZR or D-pad Left / Right | Previous / next hotbar slot. |
+| A | Jump or confirm/select. |
+| X / Y | Inventory / crafting. |
+| D-pad Up / Down | Camera perspective / sneak. |
+| START / SELECT | Pause. |
+| Touchscreen | Normal buttons, tabs, items, and hotbar slots. |
+
+L does not switch the left Circle Pad into camera input, and L + Y is not a drop shortcut in this mode. On-screen L and B hints match the original bindings.
+
+Use the Circle Pad Pro model that fits your console, with a working battery. The patch retries the game's native IR accessory connection in the background. Basic buttons and the left Circle Pad remain available while connection attempts fail; looking requires the accessory. There is no automatic L + Circle Pad fallback. Physical connection, calibration, sleep/wake, and reconnection still need hardware testing.
 
 HOME, POWER, volume, the lid, and the 3D slider are unchanged. Some retained actions, including sprinting, flight, eating, and contextual inventory operations, have not all been individually verified.

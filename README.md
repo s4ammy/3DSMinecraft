@@ -1,8 +1,8 @@
 # Minecraft Old 3DS Patcher
 
-Patches Minecraft: New Nintendo 3DS Edition to run on the original 3DS, with lower memory use and controls that do not need a C-stick.
+Patches Minecraft: New Nintendo 3DS Edition to run on the original 3DS, with lower memory use and a choice of L + Circle Pad or Circle Pad Pro controls.
 
-Version 0.1.1 fixes dropped items remaining visible after pickup with the low-graphics preset. Rebuild the patcher and patch your original CIA again to get the correction. Already-patched CIAs are not accepted.
+Version 0.2.0 adds `--controls circle-pad-pro`. The default L + Circle Pad mode produces the same executable as 0.1.1, and both modes include the dropped-item pickup correction. Rebuild the patcher and patch your original CIA again to change modes. Already-patched CIAs are not accepted.
 
 You need your own CIA and a console running CFW. No game files, keys, or seeds are included. This guide builds the patcher, downloads the title seed separately, and creates a patched CIA.
 
@@ -116,6 +116,15 @@ Use either `--seed-file` or `--seeddb`, not both. Renaming a raw seed to `seeddb
 
 ## 4. Check and patch the CIA
 
+Choose controls when building the CIA:
+
+| Option | Controls |
+| --- | --- |
+| `--controls l-circle-pad` (default) | Hold L + Circle Pad to look, B to place/use, L + Y to drop. No accessory needed. |
+| `--controls circle-pad-pro` | Circle Pad to walk and the accessory's right pad to look simultaneously. L places/uses, B drops, and ZL / ZR select hotbar slots. Physical accessory testing is pending. |
+
+This is a patch-time choice, with no in-game toggle. The commands below use the default. For CPP mode, add `--controls circle-pad-pro` to both the dry run and build command, and use an output name such as `Minecraft-old3ds-circle-pad-pro.cia`. CPP mode requires the exact supported European executable, even with `--allow-similar`.
+
 First, run an optional dry run. This decrypts the input, verifies its integrity, and checks the patch profile without writing an output CIA.
 
 ### Linux
@@ -151,6 +160,20 @@ The patcher decrypts, decompresses, patches, rebuilds, and verifies the CIA auto
 
 It refuses to overwrite either an existing output CIA or its report. For another run, choose a new output name such as `-o "Minecraft-old3ds-2.cia"`.
 
+For example, build CPP mode on Linux with:
+
+```sh
+./build/mc3ds-patcher "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
+```
+
+Or on Windows:
+
+```powershell
+.\build\Release\mc3ds-patcher.exe "Minecraft.cia" --seed-file "title-seed.bin" --controls circle-pad-pro -o "Minecraft-old3ds-circle-pad-pro.cia"
+```
+
+Without `-o`, the default filenames end in `-old3ds.cia` or `-old3ds-circle-pad-pro.cia`, depending on the mode. The report records your choice. Install the output you selected in the next step.
+
 ## 5. Install and play
 
 1. Back up any existing Minecraft saves before installation. The patched CIA uses the same title ID and replaces the installed base game.
@@ -159,7 +182,7 @@ It refuses to overwrite either an existing output CIA or its report. For another
 4. Reinsert the card, start the console, and open [FBI](https://github.com/Steveice10/FBI). Browse **SD > cias**, select `Minecraft-old3ds.cia`, choose **Install CIA**, and confirm. Wait for installation to finish.
 5. Return to the HOME Menu and launch Minecraft. Do not install a game update over the patched build.
 
-Hold L + Circle Pad to look around, use B to place/use, and L + Y to drop. See [all controls](INPUTS_EXPLAINED.md) and [included patches](PATCHES.md). The electronic manual and banner are omitted.
+In the default mode, hold L + Circle Pad to look around, use B to place/use, and L + Y to drop. In CPP mode, use the accessory's right pad to look, L to place/use, and B to drop. See [all controls](INPUTS_EXPLAINED.md) and [included patches](PATCHES.md). The electronic manual and banner are omitted.
 
 The preceding build has been reported working on an Old 3DS. The pickup correction has passed Azahar testing and still needs confirmation on hardware. Performance varies by world; a steady minimum of 20 FPS has not been established. See [compatibility](COMPATIBILITY.md) for details.
 
@@ -187,7 +210,7 @@ If you accept an unverified connection for this seed download, repeat the downlo
 | Game still requires New 3DS hardware or patched controls are absent | Check that you installed the patched output and that no game update is overriding it. |
 | Dropped items enter the inventory but remain visible on the ground | Rebuild patcher version 0.1.1 or later, patch an original CIA, and install the new output. The correction keeps pickup animations updating with low graphics enabled. |
 
-For other builds, `--allow-similar` attempts signature matching with strict checks, but compatibility is not guaranteed. It does not make the European seed valid for another title. Run the patcher with `--help` to list all options.
+For other builds, `--allow-similar` attempts signature matching with strict checks in L + Circle Pad mode, but compatibility is not guaranteed. CPP mode requires the exact supported executable. This option does not make the European seed valid for another title. Run the patcher with `--help` to list all options.
 
 ## Licence
 

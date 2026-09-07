@@ -10,6 +10,7 @@ namespace Mc3ds {
         std::filesystem::path toolsDirectory;
         std::filesystem::path seedDatabase;
         std::filesystem::path seedFile;
+        EControlMode controlMode = EControlMode::L_CIRCLE_PAD;
         bool allowSimilar = false;
         bool dryRun = false;
     };

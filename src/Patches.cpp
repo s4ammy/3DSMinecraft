@@ -1,5 +1,6 @@
 #include "Patches.h"
 #include "SignatureData.h"
+#include "CirclePadProData.h"
 
 #include <algorithm>
 #include <limits>
@@ -44,11 +45,39 @@ std::string Mc3ds::NormalizedSystemProfile(TBytes exheader) {
     return Sha256(exheader);
 }
 
-Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar) {
+Mc3ds::EControlMode Mc3ds::ParseControlMode(const std::string &name) {
+    if (name == "l-circle-pad") {
+        return EControlMode::L_CIRCLE_PAD;
+    }
+
+    if (name == "circle-pad-pro") {
+        return EControlMode::CIRCLE_PAD_PRO;
+    }
+
+    throw std::runtime_error("Unknown control mode '" + name + "'; use l-circle-pad or circle-pad-pro");
+}
+
+std::string Mc3ds::ControlModeName(EControlMode controlMode) {
+    switch (controlMode) {
+    case EControlMode::L_CIRCLE_PAD:
+        return "l-circle-pad";
+    case EControlMode::CIRCLE_PAD_PRO:
+        return "circle-pad-pro";
+    }
+
+    throw std::runtime_error("Invalid control mode");
+}
+
+Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar, EControlMode controlMode) {
+    const auto controlName = ControlModeName(controlMode);
+    const auto circlePadPro = controlMode == EControlMode::CIRCLE_PAD_PRO;
     const auto inputHash = Sha256(code);
-    Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash, "This executable is already patched; start with an original CIA");
+    Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash && inputHash != circlePadProCodeHash,
+        "This executable is already patched; start with an original CIA");
 
     const auto known = inputHash == testedCodeHash;
+    //The accessory worker calls SDK entry points verified for this executable only.
+    Require(!circlePadPro || known, "Circle Pad Pro mode requires the documented European v0.1.0 executable, including with --allow-similar");
     Require(known || allowSimilar, "Unrecognized executable SHA-256: " + inputHash + ". Use --allow-similar to try the guarded signature profile; compatibility is not guaranteed.");
     Require(NormalizedSystemProfile(exheader) == systemProfileHash,
         "Extended-header capabilities or dependencies differ from the supported profile");
@@ -76,14 +105,17 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
 
     const auto bssStart = CheckedAdd(dataAddress, dataSize);
     const auto bssEnd = CheckedAdd(bssStart, bssSize);
-    Require((bssEnd & 3) == 0 && RoundPage(CheckedAdd(dataSize, bssSize)) == RoundPage(CheckedAdd(CheckedAdd(dataSize, bssSize), 16)),
-        "Input latch would need another data page");
+    const auto extraBssSize = circlePadPro ? 0x1040U : 16U;
+    Require((bssEnd & (circlePadPro ? 7U : 3U)) == 0, "Input storage must be aligned");
+    Require(circlePadPro || RoundPage(CheckedAdd(dataSize, bssSize)) == RoundPage(CheckedAdd(CheckedAdd(dataSize, bssSize), extraBssSize)),
+        "Input storage would need another data page");
 
     const auto cave = CheckedAdd(textSize, 3) & ~3U;
     const auto controlsOffset = CheckedAdd(cave, 0x84);
     const auto pickupOffset = CheckedAdd(controlsOffset, 0x100);
-    const auto caveEnd = CheckedAdd(pickupOffset, 0x18);
-    Require(caveEnd <= RoundPage(textSize), "No room for the input and pickup hooks in text padding");
+    const auto accessoryOffset = CheckedAdd(pickupOffset, 0x18);
+    const auto caveEnd = CheckedAdd(accessoryOffset, circlePadPro ? 0x14c : 0);
+    Require(caveEnd <= RoundPage(textSize), "No room for the control and pickup hooks in text padding");
     RequireRange(code.size(), textSize, RoundPage(textSize) - textSize);
     Require(std::all_of(code.begin() + textSize, code.begin() + RoundPage(textSize),
                 [](auto value) {
@@ -172,18 +204,24 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     auto report = std::ostringstream{};
     report << "Executable SHA-256: " << inputHash << "\n";
     report << "Profile: " << (known ? "tested executable" : "experimental signature match") << "\n";
+    report << "Control mode: " << controlName << "\n";
     for (const auto &location : locations) {
         const auto &spec = *location.spec;
         const auto offset = location.offset;
+        if (circlePadPro && (spec.kind == EWriteKind::INPUT_HOOK || spec.kind == EWriteKind::CONTROL_BINDING)) {
+            report << "Original binding retained: " << spec.name << "\n";
+            continue;
+        }
+
         if (spec.kind == EWriteKind::CHUNK_BASE) {
             Write32(result.code, offset, CheckedAdd(chunkBase, 24));
         } else if (spec.kind == EWriteKind::BSS_END) {
-            Write32(result.code, offset, CheckedAdd(bssEnd, 16));
+            Write32(result.code, offset, CheckedAdd(bssEnd, extraBssSize));
         } else if (spec.kind == EWriteKind::INPUT_HOOK) {
             Write32(result.code, offset, ArmBranch(CheckedAdd(textAddress, static_cast<std::uint32_t>(offset)), CheckedAdd(textAddress, controlsOffset)));
         } else if (spec.kind == EWriteKind::NATIVE_HID) {
             const auto source = CheckedAdd(textAddress, static_cast<std::uint32_t>(offset));
-            Write32(result.code, offset, ArmBranch(source, CheckedAdd(source, 0x38)));
+            Write32(result.code, offset, ArmBranch(source, circlePadPro ? CheckedAdd(textAddress, accessoryOffset) : CheckedAdd(source, 0x38)));
         } else if (spec.kind == EWriteKind::PICKUP_HOOK) {
             //Keep the original EQ condition so full graphics retains its normal tick.
             Write32(result.code, offset, ArmBranch(pickupHookAddress, CheckedAdd(textAddress, pickupOffset)) & 0x0fffffffU);
@@ -207,21 +245,36 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     Write32(controls, 0x9c, bssEnd);
     Write32(pickup, 0x10, ArmBranch(CheckedAdd(textAddress, pickupOffset + 0x10), CheckedAdd(textAddress, static_cast<std::uint32_t>(pickupLoopOffset))));
     Write32(pickup, 0x14, pickupResumeAddress);
-    std::copy(legacy.begin(), legacy.end(), result.code.begin() + cave);
-    std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
+    if (!circlePadPro) {
+        std::copy(legacy.begin(), legacy.end(), result.code.begin() + cave);
+        std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
+    }
+
+    if (circlePadPro) {
+        const auto accessory = FromHex(circlePadProPayloadHex);
+        Require(textAddress + accessoryOffset == 0x6803b0 && bssEnd == 0x8cb290 && accessory.size() == 0x14c,
+            "Circle Pad Pro payload layout differs from the verified executable");
+        Require(Sha256(accessory) == "0b15de06088afe3f5fa88cd5c0889f6cce03ec0b70183c7f98f94f02bd8601e1", "Circle Pad Pro payload checksum mismatch");
+        Require(Read32(code, 0xbc40) == 0xe92d4010, "Unexpected accessory shutdown prologue");
+        std::copy(accessory.begin(), accessory.end(), result.code.begin() + accessoryOffset);
+        Write32(result.code, 0xbc40, ArmBranch(0x10bc40, 0x680498));
+        report << "Accessory connection worker and shutdown hook enabled. Hardware validation pending.\n";
+    }
+
     std::copy(pickup.begin(), pickup.end(), result.code.begin() + pickupOffset);
-    Write32(result.exheader, 0x3c, CheckedAdd(bssSize, 16));
+    Write32(result.exheader, 0x3c, CheckedAdd(bssSize, extraBssSize));
     result.exheader[0x20c] = 0;
     result.exheader[0x20d] = 0;
     result.exheader[0x20e] = 0x34;
     Write32(result.exheader, 0x394, 0xff000101);
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
-    Require(!known || outputHash == patchedCodeHash, "Known executable did not reproduce the verified pickup-fixed code");
+    Require(!known || outputHash == (circlePadPro ? circlePadProCodeHash : patchedCodeHash), "Known executable did not reproduce the expected control profile");
     report << "Hook storage: code+0x" << HexNumber(cave) << "\n";
     report << "Pickup hook storage: code+0x" << HexNumber(pickupOffset) << "\n";
     report << "Pickup animations tick and expire with low graphics enabled.\n";
-    report << "Input latch: 0x" << HexNumber(bssEnd) << " (16 bytes, no extra page)\n";
+    report << (circlePadPro ? "Accessory state and 4 KB worker stack: 0x" : "Input latch: 0x") << HexNumber(bssEnd)
+           << (circlePadPro ? " (4160 bytes, one extra data page)\n" : " (16 bytes, no extra page)\n");
     report << "Patched executable SHA-256: " << outputHash << "\n";
     result.report = report.str();
 

@@ -9,9 +9,10 @@ namespace Mc3ds {
 }
 
 void Mc3ds::PrintHelp() {
-    std::cout << "Minecraft Old 3DS Patcher 0.1.1\n\n"
+    std::cout << "Minecraft Old 3DS Patcher 0.2.0\n\n"
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
-                 "  -o, --output FILE       Output CIA (default: input-old3ds.cia)\n"
+                 "  -o, --output FILE       Output CIA (default depends on control mode)\n"
+                 "  --controls MODE        l-circle-pad (default) or circle-pad-pro\n"
                  "  --tools-dir DIRECTORY   Folder containing ctrtool and makerom\n"
                  "  --seeddb FILE           Local seeddb.bin for encrypted titles\n"
                  "  --seed-file FILE        Local 16-byte title seed instead of seeddb\n"
@@ -20,6 +21,7 @@ void Mc3ds::PrintHelp() {
                  "  -h, --help              Show this help\n\n"
                  "The input is never modified and existing outputs are never overwritten.\n"
                  "Only the documented European v0.1.0 executable has been tested.\n"
+                 "Circle Pad Pro mode requires that executable, even with --allow-similar.\n"
                  "The result is an unencrypted, test-signed CIA for CFW, not stock firmware.\n";
 }
 
@@ -52,6 +54,8 @@ int Mc3ds::Main(const std::vector<std::string> &arguments) {
                 options.seedDatabase = value();
             } else if (argument == "--seed-file") {
                 options.seedFile = value();
+            } else if (argument == "--controls") {
+                options.controlMode = ParseControlMode(value().u8string());
             } else if (argument == "--allow-similar") {
                 options.allowSimilar = true;
             } else if (argument == "--dry-run") {
