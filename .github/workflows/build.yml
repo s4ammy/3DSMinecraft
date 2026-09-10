@@ -123,7 +123,8 @@ jobs:
                         fi
                     fi
 
-                    if tagCommit=$(gh api "repos/$GH_REPO/commits/refs/tags/$RELEASE_TAG" --jq .sha 2>tag-error.txt); then
+                    if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --silent 2>tag-error.txt; then
+                        tagCommit=$(gh api "repos/$GH_REPO/commits/refs/tags/$RELEASE_TAG" --jq .sha)
                         if [[ "$tagCommit" != "$GITHUB_SHA" ]]; then
                             echo "$RELEASE_TAG points to a different commit. Use a new version."
                             exit 1
