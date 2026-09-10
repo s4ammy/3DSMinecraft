@@ -101,8 +101,8 @@ Mc3ds::TCiaMetadata Mc3ds::ReadCiaMetadata(const std::filesystem::path &path) {
 
     const auto signatureSize = SignatureSize(tmd);
     const auto titleId = ReadBig(tmd, signatureSize + 0x4c, 8);
-    if ((titleId >> 32) != 0x00040000 || (titleId & 0xff) != 0) {
-        throw std::runtime_error("Only base-game application CIAs are supported, not updates or DLC");
+    if (((titleId >> 32) != 0x00040000 && (titleId >> 32) != 0x0004000e) || (titleId & 0xff) != 0) {
+        throw std::runtime_error("Only base-game and update CIAs are supported, not DLC");
     }
 
     const auto ticketSize = Read32(header, 0xc);
@@ -221,10 +221,15 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     const auto ctrtool = FindTool(options.toolsDirectory, "ctrtool");
     const auto makerom = options.dryRun ? std::filesystem::path{} : FindTool(options.toolsDirectory, "makerom");
     const auto metadata = ReadCiaMetadata(input);
+    const auto update = (metadata.titleId >> 32) == 0x0004000e;
+    const auto applicationTitleId = (std::uint64_t{0x00040000} << 32) | (metadata.titleId & 0xffffffff);
     std::cout << "Hashing input CIA..." << std::endl;
     const auto inputHash = Sha256File(input);
     std::cout << "Input SHA-256: " << inputHash << "\n";
-    std::cout << (inputHash == testedCiaHash ? "This is the reference CIA.\n" : "Different CIA package. The executable still has to pass the profile checks.\n");
+    std::cout << (inputHash == testedCiaHash || inputHash == updateCiaHash ? "This is a reference CIA.\n" : "Different CIA package. The executable still has to pass the profile checks.\n");
+    if (update) {
+        std::cout << "Update package: install the patched output alongside the matching patched base game.\n";
+    }
     auto workspace = CWorkspace(std::filesystem::temp_directory_path());
     const auto &work = workspace.path();
     std::filesystem::create_directory(work / "exefs");
@@ -267,14 +272,15 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     const auto extraction = RunProcess(ctrtool, arguments);
     CheckToolResult(extraction, "Input extraction", HashMarkers());
     auto productMatch = std::smatch{};
-    if (!std::regex_search(extraction.output, productMatch, std::regex("Product code:[ \\t]+(KTR-P-BD3[A-Z])"))) {
+    if (!std::regex_search(extraction.output, productMatch, std::regex("Product code:[ \\t]+(KTR-[PU]-BD3[A-Z])"))) {
         throw std::runtime_error("This is not a recognized Minecraft product-code family");
     }
 
     const auto productCode = productMatch[1].str();
     const auto exheader = ReadFile(work / "exheader.bin");
-    if (Read64(exheader, 0x200) != metadata.titleId || Read64(exheader, 0x1c8) != metadata.titleId ||
-        Read64(exheader, 0x230) != ((metadata.titleId >> 8) & 0xffffff)) {
+    if (Read64(exheader, 0x200) != applicationTitleId || Read64(exheader, 0x1c8) != metadata.titleId ||
+        Read64(exheader, 0x230) != ((metadata.titleId >> 8) & 0xffffff) ||
+        productCode[4] != (update ? 'U' : 'P')) {
         throw std::runtime_error("Title identity or save-data mapping is inconsistent");
     }
 
@@ -291,7 +297,8 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     WriteFile(work / "code.bin", patched.code);
     WriteFile(work / "exheader.bin", patched.exheader);
     WriteFile(work / "icon.bin", patched.icon);
-    WriteText(work / "rebuild.rsf", MakeRebuildSettings(productCode, metadata.titleId));
+    WriteText(work / "rebuild.rsf", MakeRebuildSettings(productCode, metadata.titleId,
+        static_cast<std::uint16_t>(Read32(exheader, 0xc) >> 16)));
     std::cout << "Building an unencrypted, test-signed CIA for CFW..." << std::endl;
     const auto built = RunProcess(makerom, {"-f", "cia", "-o", PathText(work / "output.cia"), "-rsf", PathText(work / "rebuild.rsf"), "-target", "t", "-exheader", PathText(work / "exheader.bin"), "-code", PathText(work / "code.bin"), "-romfs", PathText(work / "romfs.bin"), "-icon", PathText(work / "icon.bin")});
     CheckToolResult(built, "CIA build", {});
@@ -322,6 +329,13 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     }
 
     const auto verifiedExheader = ReadFile(work / "verify-exheader.bin");
+    if (Read64(verifiedExheader, 0x200) != applicationTitleId ||
+        Read64(verifiedExheader, 0x1c8) != metadata.titleId ||
+        Read64(verifiedExheader, 0x230) != Read64(patched.exheader, 0x230) ||
+        (Read32(verifiedExheader, 0xc) >> 16) != (Read32(patched.exheader, 0xc) >> 16)) {
+        throw std::runtime_error("Rebuild changed the application identity, update target, save mapping, or remaster version");
+    }
+
     for (const auto offset : {0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x30, 0x34, 0x38, 0x3c}) {
         if (Read32(verifiedExheader, static_cast<std::size_t>(offset)) != Read32(patched.exheader, static_cast<std::size_t>(offset))) {
             throw std::runtime_error("Rebuild changed the executable memory layout");
@@ -334,10 +348,10 @@ void Mc3ds::RunPatcher(const TOptions &options) {
 
     const auto outputHash = Sha256File(work / "output.cia");
     auto report = std::ostringstream{};
-    report << "Minecraft Old 3DS Patcher 0.2.0\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
+    report << "Minecraft Old 3DS Patcher " << MC3DS_VERSION << "\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
            << patched.report << "Input file unchanged. Package hashes and re-extracted payload verified.\n"
            << "Unencrypted CFW package. Ticket/TMD version restored after test-key signing. Retail signatures are invalid.\n"
-           << "Main application only, matching the tested patch profile. No electronic manual content is rebuilt.\n"
+           << (update ? "Update content only. Matching patched base game required.\n" : "Main application only. No electronic manual content is rebuilt.\n")
            << "This report contains no ticket keys or title seeds.\n";
     WriteText(work / "report.txt", report.str());
     auto outputStage = CWorkspace(output.parent_path());

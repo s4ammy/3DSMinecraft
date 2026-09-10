@@ -20,8 +20,8 @@ void Mc3ds::PrintHelp() {
                  "  --dry-run               Decrypt and check all patches without building a CIA\n"
                  "  -h, --help              Show this help\n\n"
                  "The input is never modified and existing outputs are never overwritten.\n"
-                 "Only the documented European v0.1.0 executable has been tested.\n"
-                 "Circle Pad Pro mode requires that executable, even with --allow-similar.\n"
+                 "Supports the European v0.1.0 base game and v9.11.0 update.\n"
+                 "Patch the update separately and install it alongside the patched base game.\n"
                  "The result is an unencrypted, test-signed CIA for CFW, not stock firmware.\n";
 }
 

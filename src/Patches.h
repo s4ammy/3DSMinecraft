@@ -8,6 +8,10 @@ namespace Mc3ds {
     inline const std::string previousPatchedCodeHash = "d484dbb3211d7bc2d48b28bef0a1aba3b38db34a058daaabd74b5c983b791f81";
     inline const std::string patchedCodeHash = "c2ed3f1670cab5b461c29758a7bdb0cd0b00dd1105553f2f37cc0a1c1f71af6f";
     inline const std::string circlePadProCodeHash = "18dff470eeb11111dc6ed4ee3edec7c8ea9e6516e994beb5594f7bb9de684264";
+    inline const std::string updateCiaHash = "8526ef24719d074c1b3de4742e23c795c003ff51d10f7ea99839c6974587a75b";
+    inline const std::string updateOriginalCodeHash = "902ccd5a06d59797c52976b2905dc56a5ca0a868021432fcc7eb127ba3320d65";
+    inline const std::string updateLCirclePadCodeHash = "f20d5063fe2b77daaec640de1a81d5c42817a746c0f5d355d0ab8f1d04b7b04c";
+    inline const std::string updateCirclePadProCodeHash = "e296f8c6a5e66ce9f2be5918e927cae8008fae824bd3bbec60069f54fda54040";
 
     enum class EControlMode {
         L_CIRCLE_PAD,
@@ -46,5 +50,5 @@ namespace Mc3ds {
     EControlMode ParseControlMode(const std::string &name);
     std::string ControlModeName(EControlMode controlMode);
     TPatchResult PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar, EControlMode controlMode = EControlMode::L_CIRCLE_PAD);
-    std::string MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId);
+    std::string MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId, std::uint16_t remasterVersion = 0);
 }

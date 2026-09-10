@@ -34,7 +34,7 @@ def PackageRelease():
     version = arguments.version
     if version != "dev":
         if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?", version):
-            raise RuntimeError("Use dev or a version tag such as v0.2.0 or v0.2.0-rc1")
+            raise RuntimeError("Use dev or a version tag such as v0.3.0 or v0.3.0-rc1")
 
         projectVersion = re.search(r"project\(MinecraftOld3dsPatcher VERSION ([0-9.]+)",
                                   (projectPath / "CMakeLists.txt").read_text()).group(1)

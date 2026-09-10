@@ -1,6 +1,6 @@
 # Controls
 
-Choose `--controls l-circle-pad` (the default) or `--controls circle-pad-pro` when patching an original CIA. There is no in-game mode switch.
+Choose `--controls l-circle-pad` (the default) or `--controls circle-pad-pro` when patching an original CIA. Both the base game and update offer these modes. There is no in-game mode switch.
 
 ## L + Circle Pad: gameplay
 

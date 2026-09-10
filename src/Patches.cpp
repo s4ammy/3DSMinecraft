@@ -1,6 +1,7 @@
 #include "Patches.h"
 #include "SignatureData.h"
 #include "CirclePadProData.h"
+#include "UpdatePatches.h"
 
 #include <algorithm>
 #include <limits>
@@ -72,8 +73,13 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     const auto controlName = ControlModeName(controlMode);
     const auto circlePadPro = controlMode == EControlMode::CIRCLE_PAD_PRO;
     const auto inputHash = Sha256(code);
-    Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash && inputHash != circlePadProCodeHash,
+    Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash && inputHash != circlePadProCodeHash &&
+            inputHash != updateLCirclePadCodeHash && inputHash != updateCirclePadProCodeHash,
         "This executable is already patched; start with an original CIA");
+
+    if (inputHash == updateOriginalCodeHash || (Read64(exheader, 0x1c8) >> 32) == 0x0004000e) {
+        return PatchUpdateGame(code, exheader, icon, allowSimilar, controlMode);
+    }
 
     const auto known = inputHash == testedCodeHash;
     //The accessory worker calls SDK entry points verified for this executable only.
@@ -281,11 +287,12 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     return result;
 }
 
-std::string Mc3ds::MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId) {
-    Require(productCode.size() == 10 && productCode.substr(0, 9) == "KTR-P-BD3" &&
+std::string Mc3ds::MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId, std::uint16_t remasterVersion) {
+    const auto update = (titleId >> 32) == 0x0004000e;
+    Require(productCode.size() == 10 && productCode.substr(0, 9) == (update ? "KTR-U-BD3" : "KTR-P-BD3") &&
             productCode.back() >= 'A' && productCode.back() <= 'Z',
         "Unexpected Minecraft product code");
-    Require((titleId >> 32) == 0x00040000 && (titleId & 0xff) == 0, "Only base application titles are supported");
+    Require((update || (titleId >> 32) == 0x00040000) && (titleId & 0xff) == 0, "Only base applications and updates are supported");
 
     auto settings = rebuildTemplate;
     const auto replace = [&](const std::string &name, const std::string &value) {
@@ -298,6 +305,8 @@ std::string Mc3ds::MakeRebuildSettings(const std::string &productCode, std::uint
 
     replace("@PRODUCT_CODE@", productCode);
     replace("@UNIQUE_ID@", "0x" + HexNumber((titleId >> 8) & 0xffffff));
+    replace("Category: Application", update ? "Category: Patch\n  TargetCategory: Application" : "Category: Application");
+    replace("RemasterVersion: 0", "RemasterVersion: " + std::to_string(remasterVersion));
 
     return settings;
 }
