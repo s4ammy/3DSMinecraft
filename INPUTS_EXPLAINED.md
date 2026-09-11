@@ -41,6 +41,8 @@ Press L before Y to drop. Y stays suppressed until released so crafting does not
 
 Button hints are unchanged: gameplay hints showing L for Use now mean B; B for Drop now means L + Y. The electronic manual is not included.
 
+From v0.4.11, tap B to open a crafting table, furnace or other container, then release it normally. A fresh B press closes the container. Its opening release is no longer treated as Cancel. Other menus retain their original back-button behavior, and held gameplay use is unchanged.
+
 ## Circle Pad Pro
 
 CPP mode keeps the game's original button bindings. The left Circle Pad and accessory right pad work independently, so you can walk and look at the same time.

@@ -11,18 +11,18 @@ namespace Mc3ds {
 void Mc3ds::PrintHelp() {
     std::cout << "Minecraft Old 3DS Patcher " MC3DS_VERSION "\n\n"
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
-                 "  -o, --output FILE       Output CIA (default depends on control mode)\n"
+                 "  -o, --output DIRECTORY  Output folder for Luma code.ips\n"
                  "  --controls MODE        l-circle-pad (default) or circle-pad-pro\n"
-                 "  --tools-dir DIRECTORY   Folder containing ctrtool and makerom\n"
+                 "  --tools-dir DIRECTORY   Folder containing ctrtool\n"
                  "  --seeddb FILE           Local seeddb.bin for encrypted titles\n"
                  "  --seed-file FILE        Local 16-byte title seed instead of seeddb\n"
                  "  --allow-similar         Try unknown executables with strict signature guards\n"
-                 "  --dry-run               Decrypt and check all patches without building a CIA\n"
+                 "  --dry-run               Decrypt and check all patches without writing files\n"
                  "  -h, --help              Show this help\n\n"
-                 "The input is never modified and existing outputs are never overwritten.\n"
+                 "The input is never modified. Only code.ips and report.txt are replaced.\n"
                  "Supports the European v0.1.0 base game and v9.11.0 update.\n"
-                 "Patch the update separately and install it alongside the patched base game.\n"
-                 "The result is an unencrypted, test-signed CIA for CFW, not stock firmware.\n";
+                 "Use the update CIA when the matching Old 3DS bootstrap update is installed.\n"
+                 "Copy the outputs to /luma/titles/000400000017CA00/ with game patching enabled.\n";
 }
 
 int Mc3ds::Main(const std::vector<std::string> &arguments) {

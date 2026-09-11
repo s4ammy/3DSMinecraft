@@ -1,7 +1,7 @@
 #include "Pipeline.h"
 
 #include <algorithm>
-#include <array>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -12,16 +12,12 @@ namespace Mc3ds {
     struct TCiaMetadata {
         std::uint64_t titleId;
         std::uint16_t version;
-        std::uint16_t ticketVersion;
-        std::uint64_t tmdVersionOffset;
-        std::uint64_t ticketVersionOffset;
     };
 
     TBytes ReadAt(std::ifstream &file, std::uint64_t offset, std::size_t size, std::uint64_t fileSize);
     std::uint64_t ReadBig(const TBytes &data, std::size_t offset, std::size_t size);
     std::size_t SignatureSize(const TBytes &data);
     TCiaMetadata ReadCiaMetadata(const std::filesystem::path &path);
-    void PreserveTitleVersion(const std::filesystem::path &path, const TCiaMetadata &original);
     std::filesystem::path FindTool(const std::filesystem::path &requested, const std::string &name);
     bool IsSignatureFailure(const std::string &line);
     void CheckToolResult(const TProcessResult &result, const std::string &stage, const std::vector<std::string> &markers);
@@ -116,29 +112,7 @@ Mc3ds::TCiaMetadata Mc3ds::ReadCiaMetadata(const std::filesystem::path &path) {
         throw std::runtime_error("Ticket and TMD title IDs disagree");
     }
 
-    return {titleId, static_cast<std::uint16_t>(ReadBig(tmd, signatureSize + 0x9c, 2)),
-        static_cast<std::uint16_t>(ReadBig(ticket, ticketSignatureSize + 0xa6, 2)),
-        tmdOffset + signatureSize + 0x9c, ticketOffset + ticketSignatureSize + 0xa6};
-}
-
-void Mc3ds::PreserveTitleVersion(const std::filesystem::path &path, const TCiaMetadata &original) {
-    const auto rebuilt = ReadCiaMetadata(path);
-    if (rebuilt.titleId != original.titleId) {
-        throw std::runtime_error("Rebuild changed the title ID");
-    }
-
-    auto file = std::fstream(path, std::ios::binary | std::ios::in | std::ios::out);
-    const auto version = std::array<char, 2>{static_cast<char>(original.version >> 8),
-        static_cast<char>(original.version & 0xff)};
-    for (const auto offset : {rebuilt.tmdVersionOffset, rebuilt.ticketVersionOffset}) {
-        file.seekp(static_cast<std::streamoff>(offset));
-        file.write(version.data(), static_cast<std::streamsize>(version.size()));
-    }
-
-    file.close();
-    if (!file) {
-        throw std::runtime_error("Cannot preserve the title version in the private output");
-    }
+    return {titleId, static_cast<std::uint16_t>(ReadBig(tmd, signatureSize + 0x9c, 2))};
 }
 
 std::filesystem::path Mc3ds::FindTool(const std::filesystem::path &requested, const std::string &name) {
@@ -157,7 +131,7 @@ std::filesystem::path Mc3ds::FindTool(const std::filesystem::path &requested, co
         }
     }
 
-    throw std::runtime_error("Missing " + filename + ". Put the pinned Project_CTR tools in the tools folder, "
+    throw std::runtime_error("Missing " + filename + ". Put the pinned Project_CTR tool in the tools folder, "
                                                      "use --tools-dir, or build with MC3DS_FETCH_TOOLS=ON. See README.md.");
 }
 
@@ -206,30 +180,35 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("Input must be a regular CIA file");
     }
 
-    const auto suffix = options.controlMode == EControlMode::CIRCLE_PAD_PRO ? "-old3ds-circle-pad-pro.cia" : "-old3ds.cia";
-    auto output = options.output.empty() ? input.parent_path() / (input.stem().u8string() + suffix) : std::filesystem::absolute(options.output);
-    output = std::filesystem::weakly_canonical(output);
-    const auto reportPath = std::filesystem::path(output.native() + std::filesystem::path(".report.txt").native());
-    if (output == input || (!options.dryRun && (std::filesystem::exists(output) || std::filesystem::exists(reportPath)))) {
-        throw std::runtime_error("Output or report already exists. Choose a new output name; files are never overwritten.");
+    const auto suffix = options.controlMode == EControlMode::CIRCLE_PAD_PRO ? "-old3ds-luma-circle-pad-pro" : "-old3ds-luma";
+    auto outputDirectory = options.output.empty() ? input.parent_path() / (input.stem().u8string() + suffix) :
+                                                    std::filesystem::absolute(options.output);
+    outputDirectory = std::filesystem::weakly_canonical(outputDirectory);
+    if (outputDirectory == outputDirectory.root_path()) {
+        throw std::runtime_error("The output directory cannot be a filesystem root");
     }
 
-    if (!options.dryRun && !std::filesystem::is_directory(output.parent_path())) {
-        throw std::runtime_error("The output directory does not exist");
+    if (std::filesystem::exists(outputDirectory) && !std::filesystem::is_directory(outputDirectory)) {
+        throw std::runtime_error("Output must be a directory");
+    }
+
+    if (!options.dryRun && !std::filesystem::is_directory(outputDirectory.parent_path())) {
+        throw std::runtime_error("The output parent directory does not exist");
     }
 
     const auto ctrtool = FindTool(options.toolsDirectory, "ctrtool");
-    const auto makerom = options.dryRun ? std::filesystem::path{} : FindTool(options.toolsDirectory, "makerom");
     const auto metadata = ReadCiaMetadata(input);
     const auto update = (metadata.titleId >> 32) == 0x0004000e;
     const auto applicationTitleId = (std::uint64_t{0x00040000} << 32) | (metadata.titleId & 0xffffffff);
     std::cout << "Hashing input CIA..." << std::endl;
     const auto inputHash = Sha256File(input);
     std::cout << "Input SHA-256: " << inputHash << "\n";
-    std::cout << (inputHash == testedCiaHash || inputHash == updateCiaHash ? "This is a reference CIA.\n" : "Different CIA package. The executable still has to pass the profile checks.\n");
+    std::cout << (inputHash == testedCiaHash || inputHash == updateCiaHash ? "This is a reference CIA.\n" :
+                                                                             "Different CIA package. The executable still has to pass the profile checks.\n");
     if (update) {
-        std::cout << "Update package: install the patched output alongside the matching patched base game.\n";
+        std::cout << "Update package: this replacement will override the installed update executable.\n";
     }
+
     auto workspace = CWorkspace(std::filesystem::temp_directory_path());
     const auto &work = workspace.path();
     std::filesystem::create_directory(work / "exefs");
@@ -257,7 +236,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     }
 
     auto arguments = std::vector<std::string>{"-v", "-y", "-n", "0", "--exheader=" + PathText(work / "exheader.bin"),
-        "--exefsdir=" + PathText(work / "exefs"), "--romfs=" + PathText(work / "romfs.bin")};
+        "--exefsdir=" + PathText(work / "exefs")};
     if (!seedDatabase.empty()) {
         seedDatabase = std::filesystem::canonical(seedDatabase);
         if (!std::filesystem::is_regular_file(seedDatabase) || std::filesystem::file_size(seedDatabase) > 16 * 1024 * 1024) {
@@ -284,91 +263,98 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("Title identity or save-data mapping is inconsistent");
     }
 
-    const auto originalRomfsHash = Sha256File(work / "romfs.bin");
+    const auto originalCode = ReadFile(work / "exefs/code.bin");
+    const auto icon = ReadFile(work / "exefs/icon.bin");
+    const auto snakeOnly = (Read32(icon, 0x2028) & 0x1000U) != 0;
     std::cout << "Scanning and checking the complete patch profile..." << std::endl;
-    const auto patched = PatchGame(ReadFile(work / "exefs/code.bin"), exheader,
-        ReadFile(work / "exefs/icon.bin"), options.allowSimilar, options.controlMode);
+    const auto patched = PatchGame(originalCode, exheader, icon,
+        options.allowSimilar, options.controlMode);
     std::cout << patched.report;
     if (options.dryRun) {
-        std::cout << "Dry run passed. No output CIA was written.\n";
+        std::cout << "Dry run passed. No replacement files were written.\n";
         return;
     }
 
-    WriteFile(work / "code.bin", patched.code);
-    WriteFile(work / "exheader.bin", patched.exheader);
-    WriteFile(work / "icon.bin", patched.icon);
-    WriteText(work / "rebuild.rsf", MakeRebuildSettings(productCode, metadata.titleId,
-        static_cast<std::uint16_t>(Read32(exheader, 0xc) >> 16)));
-    std::cout << "Building an unencrypted, test-signed CIA for CFW..." << std::endl;
-    const auto built = RunProcess(makerom, {"-f", "cia", "-o", PathText(work / "output.cia"), "-rsf", PathText(work / "rebuild.rsf"), "-target", "t", "-exheader", PathText(work / "exheader.bin"), "-code", PathText(work / "code.bin"), "-romfs", PathText(work / "romfs.bin"), "-icon", PathText(work / "icon.bin")});
-    CheckToolResult(built, "CIA build", {});
-    PreserveTitleVersion(work / "output.cia", metadata);
-    std::cout << "Verifying the rebuilt CIA and re-extracting its executable..." << std::endl;
-    std::filesystem::create_directory(work / "verify-exefs");
-    const auto verification = RunProcess(ctrtool, {"-v", "-y", "--exefsdir=" + PathText(work / "verify-exefs"), "--exheader=" + PathText(work / "verify-exheader.bin"), "--romfs=" + PathText(work / "verify-romfs.bin"), PathText(work / "output.cia")});
-    auto markers = HashMarkers();
-    const auto modeMarkers = std::vector<std::string>{"IsSnakeOnly: false",
-        "System mode:            dev2 (AppMemory: 80MB) (GOOD)",
-        "System mode (New3DS):   ctr dev2 (AppMemory: 80MB) (GOOD)",
-        "CPU Speed (New3DS):     268MHz (GOOD)", "Enable L2 Cache:        NO (GOOD)",
-        "Affinity mask:          1 (GOOD)", "Access Core 2:       NO"};
-    markers.insert(markers.end(), modeMarkers.begin(), modeMarkers.end());
-    CheckToolResult(verification, "Output verification", markers);
-    if (Sha256File(work / "verify-exefs/code.bin") != Sha256(patched.code) ||
-        Sha256File(work / "verify-exefs/icon.bin") != Sha256(patched.icon) ||
-        Sha256File(work / "verify-romfs.bin") != originalRomfsHash) {
-        throw std::runtime_error("Rebuilt executable, icon, or RomFS differs from the intended output");
+    if (patched.exheader.size() != 0x800) {
+        throw std::runtime_error("Patched extended header has an unexpected size");
     }
 
-    const auto outputMetadata = ReadCiaMetadata(work / "output.cia");
-    if (outputMetadata.titleId != metadata.titleId || outputMetadata.version != metadata.version ||
-        outputMetadata.ticketVersion != metadata.version) {
-        throw std::runtime_error("Rebuild changed title identity: expected " + HexNumber(metadata.titleId, 16) +
-            " v" + std::to_string(metadata.version) + ", got " + HexNumber(outputMetadata.titleId, 16) +
-            " v" + std::to_string(outputMetadata.version));
-    }
-
-    const auto verifiedExheader = ReadFile(work / "verify-exheader.bin");
-    if (Read64(verifiedExheader, 0x200) != applicationTitleId ||
-        Read64(verifiedExheader, 0x1c8) != metadata.titleId ||
-        Read64(verifiedExheader, 0x230) != Read64(patched.exheader, 0x230) ||
-        (Read32(verifiedExheader, 0xc) >> 16) != (Read32(patched.exheader, 0xc) >> 16)) {
-        throw std::runtime_error("Rebuild changed the application identity, update target, save mapping, or remaster version");
-    }
-
-    for (const auto offset : {0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x30, 0x34, 0x38, 0x3c}) {
-        if (Read32(verifiedExheader, static_cast<std::size_t>(offset)) != Read32(patched.exheader, static_cast<std::size_t>(offset))) {
-            throw std::runtime_error("Rebuild changed the executable memory layout");
-        }
+    const auto ipsPatch = CreateIpsPatch(originalCode, patched.code);
+    if (ApplyIpsPatch(originalCode, ipsPatch) != patched.code) {
+        throw std::runtime_error("Generated IPS did not reproduce the patched executable");
     }
 
     if (Sha256File(input) != inputHash) {
         throw std::runtime_error("Input CIA changed while the patcher was running");
     }
 
-    const auto outputHash = Sha256File(work / "output.cia");
+    const auto codeHash = Sha256(patched.code);
+    const auto ipsHash = Sha256(ipsPatch);
+    auto applicationTitleIdText = HexNumber(applicationTitleId, 16);
+    std::transform(applicationTitleIdText.begin(), applicationTitleIdText.end(), applicationTitleIdText.begin(),
+        [](unsigned char character) {
+            return static_cast<char>(std::toupper(character));
+        });
+    const auto titleDirectory = "/luma/titles/" + applicationTitleIdText + "/";
     auto report = std::ostringstream{};
-    report << "Minecraft Old 3DS Patcher " << MC3DS_VERSION << "\nInput CIA SHA-256: " << inputHash << "\nOutput CIA SHA-256: " << outputHash << "\nTitle ID: " << HexNumber(metadata.titleId, 16) << "\nTitle version: " << metadata.version << "\nProduct code: " << productCode << "\n"
-           << patched.report << "Input file unchanged. Package hashes and re-extracted payload verified.\n"
-           << "Unencrypted CFW package. Ticket/TMD version restored after test-key signing. Retail signatures are invalid.\n"
-           << (update ? "Update content only. Matching patched base game required.\n" : "Main application only. No electronic manual content is rebuilt.\n")
-           << "This report contains no ticket keys or title seeds.\n";
-    WriteText(work / "report.txt", report.str());
-    auto outputStage = CWorkspace(output.parent_path());
-    std::filesystem::copy_file(work / "output.cia", outputStage.path() / "output.cia");
-    if (Sha256File(outputStage.path() / "output.cia") != outputHash) {
-        throw std::runtime_error("Final output copy failed its checksum");
+    report << "Minecraft Old 3DS Patcher " << MC3DS_VERSION
+           << "\nOutput type: Luma IPS executable patch"
+           << "\nInput CIA SHA-256: " << inputHash
+           << "\ncode.ips SHA-256: " << ipsHash
+           << "\nSource title ID: " << HexNumber(metadata.titleId, 16)
+           << "\nLuma title ID: " << applicationTitleIdText
+           << "\nTitle version: " << metadata.version
+           << "\nProduct code: " << productCode << "\n"
+           << patched.report
+           << "Patched executable SHA-256 after IPS: " << codeHash << "\n"
+           << "Install code.ips in " << titleDirectory << " with Luma game patching enabled.\n"
+           << "Existing romfs, locale, and unrelated files in the title directory are not changed.\n"
+           << "Do not install external code.bin or exheader.bin beside this IPS.\n"
+           << (update ? "Generated from update content. The matching Old 3DS bootstrap update must be installed.\n" :
+                        "Generated from base content. The Old 3DS bootstrap base must be installed without an update.\n");
+    if (snakeOnly) {
+        report << "The source SMDH is New 3DS-only. The installed bootstrap base must contain the Old 3DS SMDH change.\n";
     }
 
-    std::filesystem::copy_file(work / "report.txt", outputStage.path() / "report.txt");
-    PublishFile(outputStage.path() / "report.txt", reportPath);
-    try {
-        PublishFile(outputStage.path() / "output.cia", output);
-    } catch (...) {
+    report << "This report contains no ticket keys or title seeds.\n";
+    const auto reportText = report.str();
+    if (!std::filesystem::exists(outputDirectory)) {
         auto error = std::error_code{};
-        std::filesystem::remove(reportPath, error);
-        throw;
+        if (!std::filesystem::create_directory(outputDirectory, error)) {
+            throw std::runtime_error("Cannot create output directory: " + error.message());
+        }
     }
 
-    std::cout << "Done: " << PathText(output) << "\nOutput SHA-256: " << outputHash << "\nReport: " << PathText(reportPath) << "\n";
+    const auto ipsPath = outputDirectory / "code.ips";
+    const auto reportPath = outputDirectory / "report.txt";
+    for (const auto &path : {ipsPath, reportPath}) {
+        if (std::filesystem::is_directory(path)) {
+            throw std::runtime_error("A generated output path is already a directory: " + PathText(path));
+        }
+    }
+
+    for (const auto &path : {outputDirectory / "code.bin", outputDirectory / "code.bps", outputDirectory / "exheader.bin"}) {
+        if (std::filesystem::exists(path)) {
+            std::cout << "Warning: remove stale executable or ExHeader override " << PathText(path) << ".\n";
+        }
+    }
+
+    auto outputStage = CWorkspace(outputDirectory);
+    WriteFile(outputStage.path() / "code.ips", ipsPatch);
+    WriteText(outputStage.path() / "report.txt", reportText);
+    if (Sha256File(outputStage.path() / "code.ips") != ipsHash) {
+        throw std::runtime_error("Staged replacement files failed their checksums");
+    }
+
+    ReplaceFile(outputStage.path() / "report.txt", reportPath);
+    ReplaceFile(outputStage.path() / "code.ips", ipsPath);
+    if (Sha256File(ipsPath) != ipsHash) {
+        throw std::runtime_error("Published replacement files failed their checksums");
+    }
+
+    std::cout << "Done: " << PathText(outputDirectory)
+              << "\nLuma destination: " << titleDirectory
+              << "\ncode.ips SHA-256: " << ipsHash
+              << "\nPatched executable SHA-256: " << codeHash
+              << "\nReport: " << PathText(reportPath) << "\n";
 }

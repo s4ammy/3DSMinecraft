@@ -10,9 +10,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
-#include <linux/fs.h>
 #include <sys/stat.h>
-#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -222,14 +220,14 @@ std::filesystem::path Mc3ds::ExecutableDirectory() {
 #endif
 }
 
-void Mc3ds::PublishFile(const std::filesystem::path &staged, const std::filesystem::path &destination) {
+void Mc3ds::ReplaceFile(const std::filesystem::path &staged, const std::filesystem::path &destination) {
 #ifdef _WIN32
-    if (!MoveFileExW(staged.c_str(), destination.c_str(), MOVEFILE_WRITE_THROUGH)) {
-        throw std::runtime_error("Cannot publish output. Check free space, permissions, and existing files.");
+    if (!MoveFileExW(staged.c_str(), destination.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        throw std::runtime_error("Cannot replace output. Check free space and permissions.");
     }
 #else
-    if (syscall(SYS_renameat2, AT_FDCWD, staged.c_str(), AT_FDCWD, destination.c_str(), RENAME_NOREPLACE) != 0) {
-        throw std::runtime_error("Cannot publish output without replacing an existing file: " +
+    if (rename(staged.c_str(), destination.c_str()) != 0) {
+        throw std::runtime_error("Cannot replace output file: " +
             std::error_code(errno, std::generic_category()).message());
     }
 #endif

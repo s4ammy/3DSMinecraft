@@ -2,6 +2,7 @@
 #include "SignatureData.h"
 #include "CirclePadProData.h"
 #include "UpdatePatches.h"
+#include "ContainerCancel.h"
 
 #include <algorithm>
 #include <limits>
@@ -122,6 +123,8 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     const auto accessoryOffset = CheckedAdd(pickupOffset, 0x18);
     const auto caveEnd = CheckedAdd(accessoryOffset, circlePadPro ? 0x14c : 0);
     Require(caveEnd <= RoundPage(textSize), "No room for the control and pickup hooks in text padding");
+    Require(RoundPage(textSize) - caveEnd >= lumaLayeredFsPayloadSize,
+        "No room for the Luma LayeredFS payload after the patch hooks");
     RequireRange(code.size(), textSize, RoundPage(textSize) - textSize);
     Require(std::all_of(code.begin() + textSize, code.begin() + RoundPage(textSize),
                 [](auto value) {
@@ -252,8 +255,10 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     Write32(pickup, 0x10, ArmBranch(CheckedAdd(textAddress, pickupOffset + 0x10), CheckedAdd(textAddress, static_cast<std::uint32_t>(pickupLoopOffset))));
     Write32(pickup, 0x14, pickupResumeAddress);
     if (!circlePadPro) {
+        PatchContainerCancel(code, result.code, controls, textAddress, CheckedAdd(textAddress, controlsOffset), baseContainerCancel);
         std::copy(legacy.begin(), legacy.end(), result.code.begin() + cave);
         std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
+        report << "Container B cancel uses a fresh press; opening releases cannot close containers.\n";
     }
 
     if (circlePadPro) {
@@ -268,6 +273,7 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     }
 
     std::copy(pickup.begin(), pickup.end(), result.code.begin() + pickupOffset);
+    Write32(result.exheader, 0x18, caveEnd);
     Write32(result.exheader, 0x3c, CheckedAdd(bssSize, extraBssSize));
     result.exheader[0x20c] = 0;
     result.exheader[0x20d] = 0;
@@ -275,9 +281,11 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     Write32(result.exheader, 0x394, 0xff000101);
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
-    Require(!known || outputHash == (circlePadPro ? circlePadProCodeHash : patchedCodeHash), "Known executable did not reproduce the expected control profile");
+    Require(!known || outputHash == (circlePadPro ? circlePadProCodeHash : patchedCodeHash),
+        "Known executable did not reproduce the expected control profile: " + outputHash);
     report << "Hook storage: code+0x" << HexNumber(cave) << "\n";
     report << "Pickup hook storage: code+0x" << HexNumber(pickupOffset) << "\n";
+    report << "LayeredFS-safe text extent: code+0x" << HexNumber(caveEnd) << "\n";
     report << "Pickup animations tick and expire with low graphics enabled.\n";
     report << (circlePadPro ? "Accessory state and 4 KB worker stack: 0x" : "Input latch: 0x") << HexNumber(bssEnd)
            << (circlePadPro ? " (4160 bytes, one extra data page)\n" : " (16 bytes, no extra page)\n");
@@ -285,28 +293,4 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
     result.report = report.str();
 
     return result;
-}
-
-std::string Mc3ds::MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId, std::uint16_t remasterVersion) {
-    const auto update = (titleId >> 32) == 0x0004000e;
-    Require(productCode.size() == 10 && productCode.substr(0, 9) == (update ? "KTR-U-BD3" : "KTR-P-BD3") &&
-            productCode.back() >= 'A' && productCode.back() <= 'Z',
-        "Unexpected Minecraft product code");
-    Require((update || (titleId >> 32) == 0x00040000) && (titleId & 0xff) == 0, "Only base applications and updates are supported");
-
-    auto settings = rebuildTemplate;
-    const auto replace = [&](const std::string &name, const std::string &value) {
-        auto position = std::size_t{0};
-        while ((position = settings.find(name, position)) != std::string::npos) {
-            settings.replace(position, name.size(), value);
-            position += value.size();
-        }
-    };
-
-    replace("@PRODUCT_CODE@", productCode);
-    replace("@UNIQUE_ID@", "0x" + HexNumber((titleId >> 8) & 0xffffff));
-    replace("Category: Application", update ? "Category: Patch\n  TargetCategory: Application" : "Category: Application");
-    replace("RemasterVersion: 0", "RemasterVersion: " + std::to_string(remasterVersion));
-
-    return settings;
 }

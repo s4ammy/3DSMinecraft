@@ -1,6 +1,9 @@
 #include "UpdatePatches.h"
 #include "UpdatePatchData.h"
+#include "PerformanceData.h"
+#include "OverlayData.h"
 #include "SignatureData.h"
+#include "ContainerCancel.h"
 
 #include <algorithm>
 #include <map>
@@ -68,12 +71,16 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     const auto bssEnd = CheckedAdd(bssStart, bssSize);
     const auto extraBssSize = circlePadPro ? 0x1040U : 16U;
     Require((bssEnd & (circlePadPro ? 7U : 3U)) == 0, "Update control storage must be aligned");
-    Require(circlePadPro || RoundPage(CheckedAdd(dataSize, bssSize)) == RoundPage(CheckedAdd(CheckedAdd(dataSize, bssSize), extraBssSize)),
-        "Update input latch would require another data page");
     const auto controlsOffset = CheckedAdd(textSize, 3) & ~3U;
     const auto pickupOffset = CheckedAdd(controlsOffset, 0x100);
     const auto accessoryOffset = CheckedAdd(pickupOffset, 0x20);
-    Require(CheckedAdd(accessoryOffset, circlePadPro ? 0x14c : 0) <= RoundPage(textSize), "No room for update hooks in text padding");
+    const auto performanceOffset = CheckedAdd(accessoryOffset, 0x27c);
+    const auto caveEnd = CheckedAdd(performanceOffset, static_cast<std::uint32_t>(updatePayloadSize));
+    Require(performanceOffset >= CheckedAdd(CheckedAdd(accessoryOffset, 0x14c), lumaLayeredFsPayloadSize),
+        "Performance payload overlaps the installed Circle Pad Pro bootstrap LayeredFS injection range");
+    Require(caveEnd <= RoundPage(textSize), "No room for update hooks in text padding");
+    Require(RoundPage(textSize) - caveEnd >= lumaLayeredFsPayloadSize,
+        "No room for the Luma LayeredFS payload after the update hooks");
     Require(std::all_of(code.begin() + textSize, code.begin() + RoundPage(textSize),
                 [](auto value) {
                     return value == 0;
@@ -113,6 +120,72 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     const auto initializedAddress = Read32(code, ResolveUpdateLiteral(code, anchors.at("accessoryStop")));
     Require(initializedAddress >= dataAddress && initializedAddress < bssEnd, "Accessory initialization flag is outside writable data");
 
+    const auto decompressInitializeOffset = std::size_t{0x2ddd20};
+    const auto decompressAcquireOffset = std::size_t{0x2dddec};
+    const auto decompressReleaseInitOffset = std::size_t{0x2dde28};
+    const auto decompressReleaseErrorOffset = std::size_t{0x2dde74};
+    const auto decompressRetainOffset = std::size_t{0x2ddec8};
+    const auto decompressFinishOffset = std::size_t{0x2ddf18};
+    const auto nextIntOffset = std::size_t{0x4c3318};
+    const auto startupPresentationOneOffset = std::size_t{0x81973c};
+    const auto startupPresentationTwoOffset = std::size_t{0x819744};
+    RequireRange(code.size(), decompressInitializeOffset, 4);
+    RequireRange(code.size(), decompressAcquireOffset, 4);
+    RequireRange(code.size(), decompressReleaseInitOffset, 4);
+    RequireRange(code.size(), decompressReleaseErrorOffset, 4);
+    RequireRange(code.size(), decompressRetainOffset, 4);
+    RequireRange(code.size(), decompressFinishOffset, 4);
+    RequireRange(code.size(), nextIntOffset, 4);
+    RequireRange(code.size(), startupPresentationOneOffset, 4);
+    RequireRange(code.size(), startupPresentationTwoOffset, 4);
+    Require(Read32(code, decompressInitializeOffset) == 0xe24dd04c &&
+            Read32(code, decompressAcquireOffset) == 0xebf51bfb &&
+            Read32(code, decompressReleaseInitOffset) == 0xebfc830c &&
+            Read32(code, decompressReleaseErrorOffset) == 0xebfc82f9 &&
+            Read32(code, decompressRetainOffset) == 0xebfc82e4 &&
+            Read32(code, decompressFinishOffset) == 0xe28dd04c,
+        "Chunk decompression scratch-buffer flow differs from the supported update");
+    Require(Read32(code, nextIntOffset) == 0xe1a02001,
+        "CLayer::NextInt entry differs from the supported update");
+    Require(Read32(code, startupPresentationOneOffset) == 0x40a00000 &&
+            Read32(code, startupPresentationTwoOffset) == 0x40a00000,
+        "Startup presentation timing table differs from the supported update");
+    for (const auto &guard : updatePerformanceGuards) {
+        RequireRange(code.size(), guard.offset, guard.size);
+        const auto guardedBytes = TBytes(code.begin() + static_cast<std::ptrdiff_t>(guard.offset),
+            code.begin() + static_cast<std::ptrdiff_t>(guard.offset + guard.size));
+        Require(Sha256(guardedBytes) == guard.hash,
+            "Performance ABI differs from the supported update: " + std::string(guard.name));
+    }
+
+    for (const auto &guard : updateOverlayGuards) {
+        RequireRange(code.size(), guard.offset, guard.size);
+        const auto guardedBytes = TBytes(code.begin() + static_cast<std::ptrdiff_t>(guard.offset),
+            code.begin() + static_cast<std::ptrdiff_t>(guard.offset + guard.size));
+        Require(Sha256(guardedBytes) == guard.hash,
+            "Overlay ABI differs from the supported update: " + std::string(guard.name));
+    }
+    Require(updateOverlayOffset + updateOverlayCapacity <= textSize &&
+            updateOverlayStateAddress >= bssStart &&
+            updateOverlayStateAddress + updateOverlayStateCapacity <= bssEnd,
+        "Overlay replacement code or state is outside its checked segment");
+    Require(Read32(code, updateOverlayGateOffset) == 0x0a000005 &&
+            Read32(code, updateOverlayVblankHookOffset) == 0x4f9044,
+        "Overlay drawing or submission gate changed");
+
+    const auto blockLookupOffset = std::size_t{0x74648};
+    const auto climateSeedOffset = std::size_t{0xba950};
+    const auto prepareInflateOffset = std::size_t{0x2dde48};
+    const auto commitInflateOffset = std::size_t{0x2ddeac};
+    const auto restoreInflateOffset = std::size_t{0x2dde64};
+    const auto lightLookupOffset = std::size_t{0x57240};
+    const auto inflateInitializeOffset = std::size_t{0x2dde14};
+    const auto inflateRetainOffset = std::size_t{0x2dded4};
+    const auto biomeRemainderOffset = std::size_t{0xc7e74};
+    const auto inflateCallbackOffsets = {std::size_t{0x2dddf0}, std::size_t{0x2dddf4}, std::size_t{0x2dddf8}};
+    const auto storageWrites = std::map<std::size_t, std::uint32_t>{
+        {0xbed0c, 0xe1a00007}, {0xbed1c, 0xe320f000}, {0xbed28, 0xe320f000}, {0xbed8c, 0xe320f000}};
+
     struct TLocatedUpdatePatch {
         const TPatchSpec *spec;
         std::size_t offset;
@@ -121,6 +194,41 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     auto locations = std::vector<TLocatedUpdatePatch>{};
     auto chunkReferences = std::set<std::size_t>{initializerLiteral};
     auto claimed = std::set<std::size_t>{};
+    const auto claimRange = [&](std::size_t offset, std::size_t size) {
+        for (auto index = std::size_t{0}; index < size; ++index) {
+            Require(claimed.insert(offset + index).second, "Update patch targets overlap");
+        }
+    };
+    claimRange(decompressInitializeOffset, 4);
+    claimRange(decompressAcquireOffset, 4);
+    claimRange(decompressReleaseInitOffset, 4);
+    claimRange(decompressReleaseErrorOffset, 4);
+    claimRange(decompressRetainOffset, 4);
+    claimRange(decompressFinishOffset, 4);
+    claimRange(nextIntOffset, 4);
+    claimRange(startupPresentationOneOffset, 4);
+    claimRange(startupPresentationTwoOffset, 4);
+    claimRange(blockLookupOffset, 0xe8);
+    claimRange(climateSeedOffset, 4);
+    claimRange(prepareInflateOffset, 4);
+    claimRange(commitInflateOffset, 4);
+    claimRange(restoreInflateOffset, 4);
+    claimRange(lightLookupOffset, 4);
+    claimRange(inflateInitializeOffset, 4);
+    claimRange(inflateRetainOffset, 4);
+    claimRange(biomeRemainderOffset, 4);
+    claimRange(updateOverlayOffset, updateOverlayCapacity);
+    claimRange(updateOverlayGateOffset, 4);
+    claimRange(updateOverlayVblankHookOffset, 4);
+    claimRange(updateHeapSearchHookOffset, 4);
+    claimRange(updateAlignedAllocationHookOffset, 4);
+    for (const auto offset : inflateCallbackOffsets) {
+        claimRange(offset, 4);
+    }
+    for (const auto &write : storageWrites) {
+        claimRange(write.first, 4);
+    }
+
     for (const auto &spec : updatePatchSpecs) {
         const auto signature = TSignature{spec.name, FromHex(spec.signatureHex), FromHex(spec.maskHex), spec.targetOffset};
         const auto offset = FindUnique(code, signature);
@@ -186,10 +294,20 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     auto controls = FromHex(updateControlsHex);
     auto pickup = FromHex(updatePickupHex);
     auto accessory = FromHex(updateAccessoryHex);
-    Require(controls.size() == 0x100 && pickup.size() == 0x20 && accessory.size() == 0x14c, "Invalid update payload sizes");
+    auto performance = FromHex(updatePerformanceHex);
+    const auto blockLookup = FromHex(updateBlockLookupHex);
+    const auto lightLookup = FromHex(updateLightLookupHex);
+    Require(controls.size() == 0x100 && pickup.size() == 0x20 && accessory.size() == 0x14c && performance.size() == updatePerformanceSize &&
+            blockLookup.size() == 0xe8 && lightLookup.size() == updateLightLookupSize && performance.size() + lightLookup.size() == updatePayloadSize,
+        "Invalid update payload sizes");
+    Require(Sha256(performance) == updatePerformanceHash && Sha256(blockLookup) == updateBlockLookupHash &&
+            Sha256(lightLookup) == updateLightLookupHash,
+        "Performance payload checksum or linked targets differ");
     const auto controlsAddress = CheckedAdd(textAddress, controlsOffset);
     const auto pickupAddress = CheckedAdd(textAddress, pickupOffset);
     const auto accessoryAddress = CheckedAdd(textAddress, accessoryOffset);
+    const auto performanceAddress = CheckedAdd(textAddress, performanceOffset);
+    Require(performanceAddress == 0x918bc0, "Performance payload address differs from its linked address");
     RelocateUpdateBranch(controls, controlsAddress, 0x98, CheckedAdd(addressOf("inputHook"), 4));
     Write32(controls, 0x9c, bssEnd);
     RelocateUpdateBranch(pickup, pickupAddress, 4, addressOf("particleTick"));
@@ -216,11 +334,80 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
         Write32(result.code, anchors.at("accessoryShutdown"), ArmBranch(addressOf("accessoryShutdown"), CheckedAdd(accessoryAddress, 0xe8)));
         report << "Accessory worker uses signature-resolved SDK entry points. Hardware validation pending.\n";
     } else {
+        PatchContainerCancel(code, result.code, controls, textAddress, controlsAddress, updateContainerCancel);
         std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
         Write32(result.code, anchors.at("inputHook"), ArmBranch(addressOf("inputHook"), controlsAddress));
+        report << "Container B cancel uses a fresh press; opening releases cannot close containers.\n";
+    }
+    std::copy(performance.begin(), performance.end(), result.code.begin() + performanceOffset);
+    std::copy(lightLookup.begin(), lightLookup.end(), result.code.begin() + performanceOffset + updatePerformanceSize);
+    const auto performanceTarget = [&](std::size_t offset) {
+        Require(offset < updatePayloadSize, "Performance symbol is outside its payload");
+        return CheckedAdd(performanceAddress, static_cast<std::uint32_t>(offset));
+    };
+    const auto writePerformanceBranch = [&](std::size_t offset, std::uint32_t destination, bool link) {
+        const auto source = CheckedAdd(textAddress, static_cast<std::uint32_t>(offset));
+        Write32(result.code, offset, ArmBranch(source, destination) | (link ? 0x01000000U : 0));
+    };
+    writePerformanceBranch(decompressInitializeOffset, performanceTarget(updateInitializeDecompressionScratchOffset), false);
+    writePerformanceBranch(decompressAcquireOffset, performanceTarget(updateAcquireDecompressionScratchOffset), true);
+    writePerformanceBranch(decompressReleaseInitOffset, performanceTarget(updateReleaseDecompressionScratchOffset), true);
+    writePerformanceBranch(decompressReleaseErrorOffset, performanceTarget(updateReleaseDecompressionScratchOffset), true);
+    Write32(result.code, decompressRetainOffset, 0xe320f000);
+    writePerformanceBranch(decompressFinishOffset, performanceTarget(updateFinishDecompressionOffset), false);
+    writePerformanceBranch(nextIntOffset, performanceTarget(updateNextIntPowerOfTwoOffset), false);
+    Write32(result.code, startupPresentationOneOffset, 0x3f000000);
+    Write32(result.code, startupPresentationTwoOffset, 0x3f000000);
+    std::copy(blockLookup.begin(), blockLookup.end(), result.code.begin() + blockLookupOffset);
+    writePerformanceBranch(climateSeedOffset, performanceTarget(updateInitializeFinalClimateCellOffset), true);
+    writePerformanceBranch(prepareInflateOffset, performanceTarget(updatePrepareInflateOutputOffset), true);
+    writePerformanceBranch(commitInflateOffset, performanceTarget(updateCommitInflateOutputOffset), true);
+    writePerformanceBranch(restoreInflateOffset, performanceTarget(updateRestoreInflateTerminatorOffset), true);
+    writePerformanceBranch(lightLookupOffset, performanceTarget(updatePerformanceSize), false);
+    writePerformanceBranch(inflateInitializeOffset, performanceTarget(updateInitializeOrResetInflateOffset), true);
+    Write32(result.code, inflateRetainOffset, 0xe320f000);
+    for (const auto offset : inflateCallbackOffsets) {
+        Write32(result.code, offset, 0xe320f000);
+    }
+    Write32(result.code, biomeRemainderOffset, 0xe2001007);
+    for (const auto &write : storageWrites) {
+        Write32(result.code, write.first, write.second);
     }
 
+    const auto overlay = FromHex(updateOverlayHex);
+    Require(overlay.size() <= updateOverlayCapacity && Sha256(overlay) == updateOverlayHash &&
+            updateOverlayVblankAddress >= textAddress + updateOverlayOffset &&
+            updateOverlayVblankAddress < textAddress + updateOverlayOffset + overlay.size(),
+        "Overlay payload checksum, size or entry changed");
+    const auto heapSearch = FromHex(updateHeapSearchHex);
+    Require(updateHeapSearchOffset >= updateOverlayOffset + overlay.size() &&
+            updateHeapSearchOffset + heapSearch.size() <= updateOverlayOffset + updateOverlayCapacity &&
+            heapSearch.size() == updateHeapSearchSize && Sha256(heapSearch) == updateHeapSearchHash,
+        "Heap search payload overlaps the overlay or its checked size/checksum changed");
+    Require(textAddress + updateHeapSearchOffset == 0x35d5f0 &&
+            textAddress + updateHeapSearchHookOffset == 0x123bd8 &&
+            Read32(code, updateHeapSearchHookOffset) == 0xe5931000,
+        "Heap search linked address or entry instruction changed");
+    const auto alignedAllocation = FromHex(updateAlignedAllocationHex);
+    Require(updateAlignedAllocationOffset >= updateHeapSearchOffset + heapSearch.size() &&
+            updateAlignedAllocationOffset + alignedAllocation.size() <= updateOverlayOffset + updateOverlayCapacity &&
+            alignedAllocation.size() == updateAlignedAllocationSize && Sha256(alignedAllocation) == updateAlignedAllocationHash,
+        "Aligned allocation payload overlaps another payload or its checked size/checksum changed");
+    Require(textAddress + updateAlignedAllocationOffset == 0x35d658 &&
+            textAddress + updateAlignedAllocationHookOffset == 0x112574 &&
+            Read32(code, updateAlignedAllocationHookOffset) == 0x0a00003d,
+        "Aligned allocation linked address or entry instruction changed");
+    std::fill_n(result.code.begin() + updateOverlayOffset, updateOverlayCapacity, 0);
+    std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
+    std::copy(heapSearch.begin(), heapSearch.end(), result.code.begin() + updateHeapSearchOffset);
+    std::copy(alignedAllocation.begin(), alignedAllocation.end(), result.code.begin() + updateAlignedAllocationOffset);
+    Write32(result.code, updateHeapSearchHookOffset, ArmBranch(0x123bd8, 0x35d5f0));
+    Write32(result.code, updateAlignedAllocationHookOffset, ArmBranch(0x112574, 0x35d658));
+    Write32(result.code, updateOverlayGateOffset, 0xe320f000);
+    Write32(result.code, updateOverlayVblankHookOffset, updateOverlayVblankAddress);
+
     Write32(result.code, startupOffset, CheckedAdd(bssEnd, extraBssSize));
+    Write32(result.exheader, 0x18, caveEnd);
     Write32(result.exheader, 0x3c, CheckedAdd(bssSize, extraBssSize));
     result.exheader[0x20c] = 0;
     result.exheader[0x20d] = 0;
@@ -229,10 +416,28 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
     Require(!known || outputHash == (circlePadPro ? updateCirclePadProCodeHash : updateLCirclePadCodeHash),
-        "Update executable did not reproduce the expected control profile");
+        "Update executable did not reproduce the expected control profile: " + outputHash);
     report << "Pickup animations tick and expire with low graphics enabled.\n"
+           << "Custom bottom-screen overlay: presented FPS, average/peak frame interval and three arena heaps.\n"
+           << "Overlay replaces the stock frame-timer renderer and reuses its palette BSS without segment growth.\n"
+           << "Locked heap free-list search can start at either end; allocation layout and coalescing are unchanged.\n"
+           << "Four-byte-aligned allocations skip redundant per-block rounding; selection and commit remain exact.\n"
+           << "Chunk streams share one thread-safe 16 KiB scratch buffer per decompression call.\n"
+           << "Scratch ownership no longer aliases z_stream.total_in (v0.4.5 regression fixed).\n"
+           << "Block lookup uses the cached chunk directly and retains the original cache-miss resolver.\n"
+           << "The deterministic climate edge pass initializes only the final cell seed.\n"
+           << "Record loading copies compressed slices directly into their destination strings.\n"
+           << "Inflate writes into unshared spare string capacity when a full 16 KiB window fits.\n"
+           << "Shared or smaller output buffers retain the original scratch-and-append path.\n"
+           << "Inflate state and history allocation are reset between streams and freed once per call.\n"
+           << "Raw chunk light reads use a direct path, retaining invalid-coordinate assertions.\n"
+           << "Biome color randomness uses exact modulo-eight masking; color refreshes remain intact.\n"
+           << "CLayer::NextInt uses exact masking for positive power-of-two bounds.\n"
+           << "Both five-second startup presentation phases use half-second durations.\n"
+           << "Patched payload end: code+0x" << HexNumber(caveEnd) << "\n"
+           << "Performance payload follows both bootstrap LayeredFS injection windows.\n"
            << "Patched executable SHA-256: " << outputHash << "\n"
-           << "Install this update alongside the matching patched base game.\n";
+           << "Replacement targets the matching installed update.\n";
     result.report = report.str();
 
     return result;

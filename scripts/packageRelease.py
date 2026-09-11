@@ -34,7 +34,7 @@ def PackageRelease():
     version = arguments.version
     if version != "dev":
         if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?", version):
-            raise RuntimeError("Use dev or a version tag such as v0.3.0 or v0.3.0-rc1")
+            raise RuntimeError("Use dev or a version tag such as v0.4.3 or v0.4.3-rc1")
 
         projectVersion = re.search(r"project\(MinecraftOld3dsPatcher VERSION ([0-9.]+)",
                                   (projectPath / "CMakeLists.txt").read_text()).group(1)
@@ -55,17 +55,16 @@ def PackageRelease():
     sourcePath.mkdir(parents=True, exist_ok=True)
     sources = [
         FetchSource("ctrtool-v1.3.0", "6c0314928dea722f769cfa7257a963df0d7503962b2998a8c91ec6879fb86075", sourcePath),
-        FetchSource("makerom-v0.19.0", "446bd23919b7e9fa10540a784202d388a0b93ef4d7165f3990481edd2aa2f946", sourcePath),
     ]
     with tempfile.TemporaryDirectory(prefix="minecraft-release-") as temporaryDirectory:
         stagingPath = Path(temporaryDirectory) / packageName
         (stagingPath / "tools/sources").mkdir(parents=True)
         (stagingPath / "licenses").mkdir()
-        for relativeName in ["mc3ds-patcher", "tools/ctrtool", "tools/makerom"]:
+        for relativeName in ["mc3ds-patcher", "tools/ctrtool"]:
             shutil.copy2(binaryPath / (relativeName + extension), stagingPath / (relativeName + extension))
             (stagingPath / (relativeName + extension)).chmod(0o755)
 
-        for name in ["README.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "THIRD_PARTY.md", "LICENSE"]:
+        for name in ["README.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "PERFORMANCE.md", "DEBUG_OVERLAY.md", "THIRD_PARTY.md", "LICENSE"]:
             shutil.copy2(projectPath / name, stagingPath / name)
 
         shutil.copy2(projectPath / "licenses/GPL-3.0.txt", stagingPath / "licenses/GPL-3.0.txt")
@@ -88,7 +87,6 @@ def PackageRelease():
         programs = [
             ("mc3ds-patcher", "--help", "Minecraft Old 3DS Patcher", 0),
             ("tools/ctrtool", "-h", "CTRTool v1.3.0", 1),
-            ("tools/makerom", "-help", "CTR MAKEROM v0.19.0", 254),
         ]
         for name, option, marker, expectedExit in programs:
             command = commandPrefix + [str(stagingPath / (name + extension)), option]

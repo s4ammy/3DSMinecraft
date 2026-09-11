@@ -16,6 +16,8 @@ namespace Mc3ds {
     void Write32(TBytes &data, std::size_t offset, std::uint32_t value);
     void RequireRange(std::size_t size, std::size_t offset, std::size_t length);
     TBytes FromHex(const std::string &text);
+    TBytes CreateIpsPatch(const TBytes &before, const TBytes &after);
+    TBytes ApplyIpsPatch(const TBytes &before, const TBytes &patch);
     std::string Hex(const TBytes &data);
     std::string HexNumber(std::uint64_t value, int width = 0);
     std::string Sha256(const TBytes &data);

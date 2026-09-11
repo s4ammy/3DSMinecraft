@@ -171,6 +171,103 @@ Mc3ds::TBytes Mc3ds::FromHex(const std::string &text) {
     return result;
 }
 
+Mc3ds::TBytes Mc3ds::CreateIpsPatch(const TBytes &before, const TBytes &after) {
+    if (before.size() != after.size()) {
+        throw std::runtime_error("IPS input sizes differ");
+    }
+
+    if (after.size() > 0x1000000) {
+        throw std::runtime_error("IPS input exceeds the 24-bit address range");
+    }
+
+    auto result = TBytes{'P', 'A', 'T', 'C', 'H'};
+    auto offset = std::size_t{0};
+    while (offset < after.size()) {
+        while (offset < after.size() && before[offset] == after[offset]) {
+            ++offset;
+        }
+
+        if (offset == after.size()) {
+            break;
+        }
+
+        auto start = offset;
+        auto lastDifference = offset;
+        while (++offset < after.size()) {
+            if (before[offset] != after[offset]) {
+                lastDifference = offset;
+            } else if (offset - lastDifference > 8) {
+                break;
+            }
+        }
+
+        auto remaining = lastDifference - start + 1;
+        while (remaining != 0) {
+            auto recordStart = start;
+            auto recordSize = std::min<std::size_t>(remaining, recordStart == 0x454f46 ? 0xfffe : 0xffff);
+            if (recordStart == 0x454f46) {
+                --recordStart;
+                ++recordSize;
+            }
+
+            result.push_back(static_cast<std::uint8_t>(recordStart >> 16));
+            result.push_back(static_cast<std::uint8_t>(recordStart >> 8));
+            result.push_back(static_cast<std::uint8_t>(recordStart));
+            result.push_back(static_cast<std::uint8_t>(recordSize >> 8));
+            result.push_back(static_cast<std::uint8_t>(recordSize));
+            result.insert(result.end(), after.begin() + static_cast<std::ptrdiff_t>(recordStart),
+                after.begin() + static_cast<std::ptrdiff_t>(recordStart + recordSize));
+            const auto consumed = recordSize - (start - recordStart);
+            start += consumed;
+            remaining -= consumed;
+        }
+    }
+
+    result.insert(result.end(), {'E', 'O', 'F'});
+
+    return result;
+}
+
+Mc3ds::TBytes Mc3ds::ApplyIpsPatch(const TBytes &before, const TBytes &patch) {
+    if (patch.size() < 8 || std::string(patch.begin(), patch.begin() + 5) != "PATCH") {
+        throw std::runtime_error("Invalid IPS header");
+    }
+
+    auto result = before;
+    auto cursor = std::size_t{5};
+    while (true) {
+        RequireRange(patch.size(), cursor, 3);
+        if (std::string(patch.begin() + static_cast<std::ptrdiff_t>(cursor),
+                patch.begin() + static_cast<std::ptrdiff_t>(cursor + 3)) == "EOF") {
+            cursor += 3;
+            break;
+        }
+
+        const auto offset = (static_cast<std::size_t>(patch[cursor]) << 16) |
+            (static_cast<std::size_t>(patch[cursor + 1]) << 8) | patch[cursor + 2];
+        cursor += 3;
+        RequireRange(patch.size(), cursor, 2);
+        const auto size = (static_cast<std::size_t>(patch[cursor]) << 8) | patch[cursor + 1];
+        cursor += 2;
+        if (size == 0) {
+            throw std::runtime_error("RLE IPS records are not generated or accepted");
+        }
+
+        RequireRange(patch.size(), cursor, size);
+        RequireRange(result.size(), offset, size);
+        std::copy(patch.begin() + static_cast<std::ptrdiff_t>(cursor),
+            patch.begin() + static_cast<std::ptrdiff_t>(cursor + size),
+            result.begin() + static_cast<std::ptrdiff_t>(offset));
+        cursor += size;
+    }
+
+    if (cursor != patch.size()) {
+        throw std::runtime_error("Unexpected data after the IPS end marker");
+    }
+
+    return result;
+}
+
 std::string Mc3ds::Hex(const TBytes &data) {
     auto output = std::ostringstream{};
     output << std::hex << std::setfill('0');
