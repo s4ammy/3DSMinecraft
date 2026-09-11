@@ -41,7 +41,7 @@ std::string Mc3ds::NormalizedSystemProfile(TBytes exheader) {
     for (const auto &range : std::vector<std::pair<std::size_t, std::size_t>>{
              {0x10, 0x40}, {0x1c8, 0x1d0}, {0x200, 0x208}, {0x230, 0x238}}) {
         std::fill(exheader.begin() + static_cast<std::ptrdiff_t>(range.first),
-            exheader.begin() + static_cast<std::ptrdiff_t>(range.second), 0);
+            exheader.begin() + static_cast<std::ptrdiff_t>(range.second), std::uint8_t{0});
     }
 
     return Sha256(exheader);

@@ -398,7 +398,7 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
             textAddress + updateAlignedAllocationHookOffset == 0x112574 &&
             Read32(code, updateAlignedAllocationHookOffset) == 0x0a00003d,
         "Aligned allocation linked address or entry instruction changed");
-    std::fill_n(result.code.begin() + updateOverlayOffset, updateOverlayCapacity, 0);
+    std::fill_n(result.code.begin() + updateOverlayOffset, updateOverlayCapacity, std::uint8_t{0});
     if (enableOverlay) {
         std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
         Write32(result.code, updateOverlayGateOffset, 0xe320f000);

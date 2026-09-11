@@ -346,8 +346,8 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("Staged replacement files failed their checksums");
     }
 
-    ReplaceFile(outputStage.path() / "report.txt", reportPath);
-    ReplaceFile(outputStage.path() / "code.ips", ipsPath);
+    ReplaceOutputFile(outputStage.path() / "report.txt", reportPath);
+    ReplaceOutputFile(outputStage.path() / "code.ips", ipsPath);
     if (Sha256File(ipsPath) != ipsHash) {
         throw std::runtime_error("Published replacement files failed their checksums");
     }

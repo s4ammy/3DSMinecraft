@@ -220,7 +220,7 @@ std::filesystem::path Mc3ds::ExecutableDirectory() {
 #endif
 }
 
-void Mc3ds::ReplaceFile(const std::filesystem::path &staged, const std::filesystem::path &destination) {
+void Mc3ds::ReplaceOutputFile(const std::filesystem::path &staged, const std::filesystem::path &destination) {
 #ifdef _WIN32
     if (!MoveFileExW(staged.c_str(), destination.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         throw std::runtime_error("Cannot replace output. Check free space and permissions.");
