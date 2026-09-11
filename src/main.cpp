@@ -13,6 +13,7 @@ void Mc3ds::PrintHelp() {
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
                  "  -o, --output DIRECTORY  Output folder for Luma code.ips\n"
                  "  --controls MODE        l-circle-pad (default) or circle-pad-pro\n"
+                 "  --overlay              Enable FPS/debug overlay (update only; default off)\n"
                  "  --tools-dir DIRECTORY   Folder containing ctrtool\n"
                  "  --seeddb FILE           Local seeddb.bin for encrypted titles\n"
                  "  --seed-file FILE        Local 16-byte title seed instead of seeddb\n"
@@ -56,6 +57,8 @@ int Mc3ds::Main(const std::vector<std::string> &arguments) {
                 options.seedFile = value();
             } else if (argument == "--controls") {
                 options.controlMode = ParseControlMode(value().u8string());
+            } else if (argument == "--overlay") {
+                options.enableOverlay = true;
             } else if (argument == "--allow-similar") {
                 options.allowSimilar = true;
             } else if (argument == "--dry-run") {

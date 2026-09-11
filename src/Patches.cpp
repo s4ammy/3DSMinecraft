@@ -70,18 +70,21 @@ std::string Mc3ds::ControlModeName(EControlMode controlMode) {
     throw std::runtime_error("Invalid control mode");
 }
 
-Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar, EControlMode controlMode) {
+Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar,
+    EControlMode controlMode, bool enableOverlay) {
     const auto controlName = ControlModeName(controlMode);
     const auto circlePadPro = controlMode == EControlMode::CIRCLE_PAD_PRO;
     const auto inputHash = Sha256(code);
     Require(inputHash != patchedCodeHash && inputHash != previousPatchedCodeHash && inputHash != circlePadProCodeHash &&
-            inputHash != updateLCirclePadCodeHash && inputHash != updateCirclePadProCodeHash,
+            inputHash != updateLCirclePadCodeHash && inputHash != updateCirclePadProCodeHash &&
+            inputHash != updateLCirclePadOverlayCodeHash && inputHash != updateCirclePadProOverlayCodeHash,
         "This executable is already patched; start with an original CIA");
 
     if (inputHash == updateOriginalCodeHash || (Read64(exheader, 0x1c8) >> 32) == 0x0004000e) {
-        return PatchUpdateGame(code, exheader, icon, allowSimilar, controlMode);
+        return PatchUpdateGame(code, exheader, icon, allowSimilar, controlMode, enableOverlay);
     }
 
+    Require(!enableOverlay, "--overlay requires the supported European v9.11.0 update, not the base game");
     const auto known = inputHash == testedCodeHash;
     //The accessory worker calls SDK entry points verified for this executable only.
     Require(!circlePadPro || known, "Circle Pad Pro mode requires the documented European v0.1.0 executable, including with --allow-similar");

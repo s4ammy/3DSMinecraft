@@ -10,8 +10,10 @@ namespace Mc3ds {
     inline const std::string circlePadProCodeHash = "6aaca1236211154d86f81b23c84fae9913effd48d316a3bb05e02a077c9a71e2";
     inline const std::string updateCiaHash = "8526ef24719d074c1b3de4742e23c795c003ff51d10f7ea99839c6974587a75b";
     inline const std::string updateOriginalCodeHash = "902ccd5a06d59797c52976b2905dc56a5ca0a868021432fcc7eb127ba3320d65";
-    inline const std::string updateLCirclePadCodeHash = "805180e1554c29de079dd3374c99cac5ebba1a0a04d3cffb1c0602395912b04f";
-    inline const std::string updateCirclePadProCodeHash = "65fd0645adcd8abe6cb595a3328efc104f0255fdcaa16c7fe472fb187afc8038";
+    inline const std::string updateLCirclePadCodeHash = "cb943e340bdb701c09fa70a0bb537f42d97d7172748531fe8011b7834535d998";
+    inline const std::string updateCirclePadProCodeHash = "a25bd838bf5142032a2eae357c7f319c9e6467d6595596bbc3cfef2ac5aeaa46";
+    inline const std::string updateLCirclePadOverlayCodeHash = "805180e1554c29de079dd3374c99cac5ebba1a0a04d3cffb1c0602395912b04f";
+    inline const std::string updateCirclePadProOverlayCodeHash = "65fd0645adcd8abe6cb595a3328efc104f0255fdcaa16c7fe472fb187afc8038";
     inline constexpr std::uint32_t lumaLayeredFsPayloadSize = 0x114;
 
     enum class EControlMode {
@@ -50,5 +52,6 @@ namespace Mc3ds {
 
     EControlMode ParseControlMode(const std::string &name);
     std::string ControlModeName(EControlMode controlMode);
-    TPatchResult PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar, EControlMode controlMode = EControlMode::L_CIRCLE_PAD);
+    TPatchResult PatchGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar,
+        EControlMode controlMode = EControlMode::L_CIRCLE_PAD, bool enableOverlay = false);
 }

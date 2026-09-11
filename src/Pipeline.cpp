@@ -268,7 +268,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     const auto snakeOnly = (Read32(icon, 0x2028) & 0x1000U) != 0;
     std::cout << "Scanning and checking the complete patch profile..." << std::endl;
     const auto patched = PatchGame(originalCode, exheader, icon,
-        options.allowSimilar, options.controlMode);
+        options.allowSimilar, options.controlMode, options.enableOverlay);
     std::cout << patched.report;
     if (options.dryRun) {
         std::cout << "Dry run passed. No replacement files were written.\n";

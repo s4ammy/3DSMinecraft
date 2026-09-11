@@ -2,9 +2,9 @@
 
 Patches Minecraft: New Nintendo 3DS Edition for the original 3DS, with lower memory use and a choice of L + Circle Pad or Circle Pad Pro controls.
 
-Version 0.4.11 produces a Luma `code.ips` patch instead of rebuilding CIAs. Once the compatible Old 3DS bootstrap titles are installed, testing a new build only requires replacing `code.ips`, closing Minecraft, and launching it again.
+Version 0.4.12 produces a Luma `code.ips` patch instead of rebuilding CIAs. Once the compatible Old 3DS bootstrap titles are installed, testing a new build only requires replacing `code.ips`, closing Minecraft, and launching it again.
 
-The update profile includes a custom bottom-screen FPS/debug overlay, cached block/light lookups, reduced climate-layer work, fewer record copies and reusable inflate state. Version 0.4.10 adds an exact fast path for four-byte-aligned heap allocations, retaining v0.4.9's faster free-block search without changing selected addresses or block merging. It retains the v0.4.5 scratch-pointer correction, exact random-bound masks and shortened startup presentations. See [overlay details](DEBUG_OVERLAY.md) and [performance measurements and limits](PERFORMANCE.md).
+The update profile includes an optional bottom-screen FPS/debug overlay, cached block/light lookups, reduced climate-layer work, fewer record copies and reusable inflate state. The overlay is off by default; add `--overlay` to enable it. Version 0.4.10 adds an exact fast path for four-byte-aligned heap allocations, retaining v0.4.9's faster free-block search without changing selected addresses or block merging. It retains the v0.4.5 scratch-pointer correction, exact random-bound masks and shortened startup presentations. See [overlay details](DEBUG_OVERLAY.md) and [performance measurements and limits](PERFORMANCE.md).
 
 You need your own original CIA and a console running CFW. No game files, keys, or seeds are included.
 
@@ -62,6 +62,12 @@ On Windows PowerShell:
 
 For the base game with no update, use `Minecraft.cia` and add `--seed-file "title-seed.bin"`. Add `--controls circle-pad-pro` to select CPP mode. Add `--dry-run` to validate without writing files.
 
+The FPS/debug overlay is disabled unless you add `--overlay` when generating from the update CIA. It works with either control profile and is not supported for the base game. This is a patch-time option, not an in-game toggle. To turn it off again, regenerate without `--overlay` and replace `code.ips`.
+
+```sh
+./mc3ds-patcher "Minecraft-update.cia" --overlay -o "minecraft-luma"
+```
+
 The output folder contains:
 
 ```text
@@ -105,17 +111,17 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DMC3DS_FETCH_TOOLS=ON
 cmake --build build --config Release
 ```
 
-The executable is in `build` on Linux or `build\Release` on Windows. MinGW-w64 also works. Run `ctest --test-dir build --output-on-failure` for payload checks. Add `-DMC3DS_UPDATE_FIXTURE=/path/to/private/update/original` when configuring to test both update profiles and compatibility rejections against your own extracted fixture.
+The executable is in `build` on Linux or `build\Release` on Windows. MinGW-w64 also works. The build does not require a test suite or private game fixtures.
 
 Pre-generated ARM payload data is included. Developers changing the ARM/C++ hooks can regenerate it with `python3 scripts/buildPerformancePayloads.py --reference-code /path/to/stock/update/code.bin`, then use `--check` to verify reproducibility. This requires Clang, LLD and llvm-objcopy. Hook offsets and expected output checksums must be reviewed whenever the linked layout changes.
 
 ## Releases
 
-Commit and push to `main` to build both platforms and publish the version from `CMakeLists.txt` to [Releases](https://github.com/s4ammy/3DSMinecraft/releases). The next version is **v0.4.7**. No separate tag push is needed.
+Commit and push to `main` to build both platforms and publish the version from `CMakeLists.txt` to [Releases](https://github.com/s4ammy/3DSMinecraft/releases). The current source version is **v0.4.12**. No separate tag push is needed.
 
-Published releases are left alone. Bump the CMake version before the next release. Explicit matching `v*` tags still work, including prereleases such as `v0.4.7-rc1`. Other branches, pull requests, and manual runs produce build artifacts only.
+Published releases are left alone. Bump the CMake version before the next release. Explicit matching `v*` tags still work, including prereleases such as `v0.4.12-rc1`. Other branches, pull requests, and manual runs produce build artifacts only.
 
-For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.7`. On Windows use `--platform windows --binary-dir build/Release`. Output goes to `dist`.
+For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.12`. On Windows use `--platform windows --binary-dir build/Release`. Output goes to `dist`.
 
 ## Help
 

@@ -37,7 +37,8 @@ void Mc3ds::RelocateUpdateBranch(TBytes &payload, std::uint32_t payloadAddress, 
     Write32(payload, offset, (instruction & 0xff000000U) | (ArmBranch(CheckedAdd(payloadAddress, offset), destination) & 0x00ffffffU));
 }
 
-Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar, EControlMode controlMode) {
+Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar,
+    EControlMode controlMode, bool enableOverlay) {
     const auto circlePadPro = controlMode == EControlMode::CIRCLE_PAD_PRO;
     const auto inputHash = Sha256(code);
     const auto known = inputHash == updateOriginalCodeHash;
@@ -398,13 +399,20 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
             Read32(code, updateAlignedAllocationHookOffset) == 0x0a00003d,
         "Aligned allocation linked address or entry instruction changed");
     std::fill_n(result.code.begin() + updateOverlayOffset, updateOverlayCapacity, 0);
-    std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
+    if (enableOverlay) {
+        std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
+        Write32(result.code, updateOverlayGateOffset, 0xe320f000);
+        Write32(result.code, updateOverlayVblankHookOffset, updateOverlayVblankAddress);
+    } else {
+        //Keep the retired renderer inert while retaining the adjacent heap helpers.
+        Write32(result.code, updateOverlayOffset, 0xe12fff1e);
+        Write32(result.code, updateOverlayGateOffset, 0xea000005);
+    }
+
     std::copy(heapSearch.begin(), heapSearch.end(), result.code.begin() + updateHeapSearchOffset);
     std::copy(alignedAllocation.begin(), alignedAllocation.end(), result.code.begin() + updateAlignedAllocationOffset);
     Write32(result.code, updateHeapSearchHookOffset, ArmBranch(0x123bd8, 0x35d5f0));
     Write32(result.code, updateAlignedAllocationHookOffset, ArmBranch(0x112574, 0x35d658));
-    Write32(result.code, updateOverlayGateOffset, 0xe320f000);
-    Write32(result.code, updateOverlayVblankHookOffset, updateOverlayVblankAddress);
 
     Write32(result.code, startupOffset, CheckedAdd(bssEnd, extraBssSize));
     Write32(result.exheader, 0x18, caveEnd);
@@ -415,12 +423,21 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     Write32(result.exheader, 0x394, 0xff000101);
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
-    Require(!known || outputHash == (circlePadPro ? updateCirclePadProCodeHash : updateLCirclePadCodeHash),
+    const auto &standardHash = circlePadPro ? updateCirclePadProCodeHash : updateLCirclePadCodeHash;
+    const auto &overlayHash = circlePadPro ? updateCirclePadProOverlayCodeHash : updateLCirclePadOverlayCodeHash;
+    const auto &expectedHash = enableOverlay ? overlayHash : standardHash;
+    Require(!known || outputHash == expectedHash,
         "Update executable did not reproduce the expected control profile: " + outputHash);
-    report << "Pickup animations tick and expire with low graphics enabled.\n"
-           << "Custom bottom-screen overlay: presented FPS, average/peak frame interval and three arena heaps.\n"
-           << "Overlay replaces the stock frame-timer renderer and reuses its palette BSS without segment growth.\n"
-           << "Locked heap free-list search can start at either end; allocation layout and coalescing are unchanged.\n"
+    report << "Pickup animations tick and expire with low graphics enabled.\n";
+    if (enableOverlay) {
+        report << "FPS/debug overlay: enabled (--overlay).\n"
+               << "Custom bottom-screen overlay: presented FPS, average/peak frame interval and three arena heaps.\n"
+               << "Overlay replaces the stock frame-timer renderer and reuses its palette BSS without segment growth.\n";
+    } else {
+        report << "FPS/debug overlay: disabled (default); no custom drawing or frame-statistics callback.\n";
+    }
+
+    report << "Locked heap free-list search can start at either end; allocation layout and coalescing are unchanged.\n"
            << "Four-byte-aligned allocations skip redundant per-block rounding; selection and commit remain exact.\n"
            << "Chunk streams share one thread-safe 16 KiB scratch buffer per decompression call.\n"
            << "Scratch ownership no longer aliases z_stream.total_in (v0.4.5 regression fixed).\n"
