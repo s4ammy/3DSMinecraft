@@ -1,6 +1,8 @@
 #include "Pipeline.h"
+#include "BootstrapData.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <fstream>
 #include <iostream>
@@ -12,16 +14,24 @@ namespace Mc3ds {
     struct TCiaMetadata {
         std::uint64_t titleId;
         std::uint16_t version;
+        std::uint16_t ticketVersion;
+        std::uint64_t tmdVersionOffset;
+        std::uint64_t ticketVersionOffset;
     };
 
     TBytes ReadAt(std::ifstream &file, std::uint64_t offset, std::size_t size, std::uint64_t fileSize);
     std::uint64_t ReadBig(const TBytes &data, std::size_t offset, std::size_t size);
     std::size_t SignatureSize(const TBytes &data);
     TCiaMetadata ReadCiaMetadata(const std::filesystem::path &path);
+    void PreserveTitleVersion(const std::filesystem::path &path, const TCiaMetadata &original);
+    std::string MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId, std::uint16_t remasterVersion);
     std::filesystem::path FindTool(const std::filesystem::path &requested, const std::string &name);
     bool IsSignatureFailure(const std::string &line);
     void CheckToolResult(const TProcessResult &result, const std::string &stage, const std::vector<std::string> &markers);
     std::vector<std::string> HashMarkers();
+    std::string BuildBootstrapCia(const std::filesystem::path &work, const std::filesystem::path &ctrtool,
+        const std::filesystem::path &makerom, const std::string &productCode, const TCiaMetadata &metadata,
+        const TBytes &originalCode, const TPatchResult &patched);
 }
 
 Mc3ds::TBytes Mc3ds::ReadAt(std::ifstream &file, std::uint64_t offset, std::size_t size, std::uint64_t fileSize) {
@@ -112,7 +122,57 @@ Mc3ds::TCiaMetadata Mc3ds::ReadCiaMetadata(const std::filesystem::path &path) {
         throw std::runtime_error("Ticket and TMD title IDs disagree");
     }
 
-    return {titleId, static_cast<std::uint16_t>(ReadBig(tmd, signatureSize + 0x9c, 2))};
+    return {titleId, static_cast<std::uint16_t>(ReadBig(tmd, signatureSize + 0x9c, 2)),
+        static_cast<std::uint16_t>(ReadBig(ticket, ticketSignatureSize + 0xa6, 2)),
+        tmdOffset + signatureSize + 0x9c, ticketOffset + ticketSignatureSize + 0xa6};
+}
+
+void Mc3ds::PreserveTitleVersion(const std::filesystem::path &path, const TCiaMetadata &original) {
+    const auto rebuilt = ReadCiaMetadata(path);
+    if (rebuilt.titleId != original.titleId) {
+        throw std::runtime_error("Rebuild changed the title ID");
+    }
+
+    auto file = std::fstream(path, std::ios::binary | std::ios::in | std::ios::out);
+    const auto version = std::array<char, 2>{static_cast<char>(original.version >> 8),
+        static_cast<char>(original.version & 0xff)};
+    for (const auto offset : {rebuilt.tmdVersionOffset, rebuilt.ticketVersionOffset}) {
+        file.seekp(static_cast<std::streamoff>(offset));
+        file.write(version.data(), static_cast<std::streamsize>(version.size()));
+    }
+
+    file.close();
+    if (!file) {
+        throw std::runtime_error("Cannot preserve the title version in the bootstrap CIA");
+    }
+}
+
+std::string Mc3ds::MakeRebuildSettings(const std::string &productCode, std::uint64_t titleId, std::uint16_t remasterVersion) {
+    const auto update = (titleId >> 32) == 0x0004000e;
+    if (productCode.size() != 10 || productCode.substr(0, 9) != (update ? "KTR-U-BD3" : "KTR-P-BD3") ||
+        productCode.back() < 'A' || productCode.back() > 'Z') {
+        throw std::runtime_error("Unexpected Minecraft product code");
+    }
+
+    if ((!update && (titleId >> 32) != 0x00040000) || (titleId & 0xff) != 0) {
+        throw std::runtime_error("Only base applications and updates are supported");
+    }
+
+    auto settings = rebuildTemplate;
+    const auto replace = [&](const std::string &name, const std::string &value) {
+        auto position = std::size_t{0};
+        while ((position = settings.find(name, position)) != std::string::npos) {
+            settings.replace(position, name.size(), value);
+            position += value.size();
+        }
+    };
+
+    replace("@PRODUCT_CODE@", productCode);
+    replace("@UNIQUE_ID@", "0x" + HexNumber((titleId >> 8) & 0xffffff));
+    replace("Category: Application", update ? "Category: Patch\n  TargetCategory: Application" : "Category: Application");
+    replace("RemasterVersion: 0", "RemasterVersion: " + std::to_string(remasterVersion));
+
+    return settings;
 }
 
 std::filesystem::path Mc3ds::FindTool(const std::filesystem::path &requested, const std::string &name) {
@@ -131,8 +191,8 @@ std::filesystem::path Mc3ds::FindTool(const std::filesystem::path &requested, co
         }
     }
 
-    throw std::runtime_error("Missing " + filename + ". Put the pinned Project_CTR tool in the tools folder, "
-                                                     "use --tools-dir, or build with MC3DS_FETCH_TOOLS=ON. See README.md.");
+    throw std::runtime_error("Missing " + filename + ". Put the pinned Project_CTR tools in the tools folder, "
+                                                     "use --tools-dir, or build with MC3DS_FETCH_TOOLS=ON. See GUIDE.md.");
 }
 
 bool Mc3ds::IsSignatureFailure(const std::string &line) {
@@ -174,6 +234,71 @@ std::vector<std::string> Mc3ds::HashMarkers() {
         "RomFS hash: (GOOD)", "Section hash: (GOOD)", "Level 0: (GOOD)", "Level 1: (GOOD)", "Level 2: (GOOD)"};
 }
 
+std::string Mc3ds::BuildBootstrapCia(const std::filesystem::path &work, const std::filesystem::path &ctrtool,
+    const std::filesystem::path &makerom, const std::string &productCode, const TCiaMetadata &metadata,
+    const TBytes &originalCode, const TPatchResult &patched) {
+    if (originalCode.size() != patched.code.size() || Read32(patched.exheader, 0x18) > originalCode.size()) {
+        throw std::runtime_error("Original executable does not fit the bootstrap memory layout");
+    }
+
+    const auto originalRomfsHash = Sha256File(work / "romfs.bin");
+    WriteFile(work / "bootstrap-code.bin", originalCode);
+    WriteFile(work / "bootstrap-exheader.bin", patched.exheader);
+    WriteFile(work / "bootstrap-icon.bin", patched.icon);
+    WriteText(work / "rebuild.rsf", MakeRebuildSettings(productCode, metadata.titleId,
+        static_cast<std::uint16_t>(Read32(patched.exheader, 0xc) >> 16)));
+
+    std::cout << "Building the one-time bootstrap CIA..." << std::endl;
+    const auto built = RunProcess(makerom, {"-f", "cia", "-o", PathText(work / "bootstrap.cia"),
+        "-rsf", PathText(work / "rebuild.rsf"), "-target", "t", "-exheader", PathText(work / "bootstrap-exheader.bin"),
+        "-code", PathText(work / "bootstrap-code.bin"), "-romfs", PathText(work / "romfs.bin"),
+        "-icon", PathText(work / "bootstrap-icon.bin")});
+    CheckToolResult(built, "Bootstrap CIA build", {});
+    PreserveTitleVersion(work / "bootstrap.cia", metadata);
+
+    std::cout << "Verifying the bootstrap CIA..." << std::endl;
+    std::filesystem::create_directory(work / "verify-exefs");
+    const auto verification = RunProcess(ctrtool, {"-v", "-y", "--exefsdir=" + PathText(work / "verify-exefs"),
+        "--exheader=" + PathText(work / "verify-exheader.bin"), "--romfs=" + PathText(work / "verify-romfs.bin"),
+        PathText(work / "bootstrap.cia")});
+    auto markers = HashMarkers();
+    const auto modeMarkers = std::vector<std::string>{"IsSnakeOnly: false",
+        "System mode:            dev2 (AppMemory: 80MB) (GOOD)",
+        "System mode (New3DS):   ctr dev2 (AppMemory: 80MB) (GOOD)",
+        "CPU Speed (New3DS):     268MHz (GOOD)", "Enable L2 Cache:        NO (GOOD)",
+        "Affinity mask:          1 (GOOD)", "Access Core 2:       NO"};
+    markers.insert(markers.end(), modeMarkers.begin(), modeMarkers.end());
+    CheckToolResult(verification, "Bootstrap CIA verification", markers);
+    if (Sha256File(work / "verify-exefs/code.bin") != Sha256(originalCode) ||
+        Sha256File(work / "verify-exefs/icon.bin") != Sha256(patched.icon) ||
+        Sha256File(work / "verify-romfs.bin") != originalRomfsHash) {
+        throw std::runtime_error("Bootstrap executable, icon, or RomFS differs from the intended output");
+    }
+
+    const auto outputMetadata = ReadCiaMetadata(work / "bootstrap.cia");
+    if (outputMetadata.titleId != metadata.titleId || outputMetadata.version != metadata.version ||
+        outputMetadata.ticketVersion != metadata.version) {
+        throw std::runtime_error("Bootstrap CIA changed the title identity or version");
+    }
+
+    const auto verifiedExheader = ReadFile(work / "verify-exheader.bin");
+    if (Read64(verifiedExheader, 0x200) != Read64(patched.exheader, 0x200) ||
+        Read64(verifiedExheader, 0x1c8) != Read64(patched.exheader, 0x1c8) ||
+        Read64(verifiedExheader, 0x230) != Read64(patched.exheader, 0x230) ||
+        (Read32(verifiedExheader, 0xc) >> 16) != (Read32(patched.exheader, 0xc) >> 16)) {
+        throw std::runtime_error("Bootstrap CIA changed the application identity or save mapping");
+    }
+
+    for (const auto offset : {0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x30, 0x34, 0x38, 0x3c}) {
+        if (Read32(verifiedExheader, static_cast<std::size_t>(offset)) !=
+            Read32(patched.exheader, static_cast<std::size_t>(offset))) {
+            throw std::runtime_error("Bootstrap CIA changed the executable memory layout");
+        }
+    }
+
+    return Sha256File(work / "bootstrap.cia");
+}
+
 void Mc3ds::RunPatcher(const TOptions &options) {
     const auto input = std::filesystem::canonical(options.input);
     if (!std::filesystem::is_regular_file(input)) {
@@ -196,7 +321,14 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("The output parent directory does not exist");
     }
 
+    const auto bootstrapPath = outputDirectory / "bootstrap.cia";
+    if (options.bootstrapCia && !options.dryRun && std::filesystem::exists(bootstrapPath)) {
+        throw std::runtime_error("bootstrap.cia already exists. Choose a fresh output folder; it is never overwritten.");
+    }
+
     const auto ctrtool = FindTool(options.toolsDirectory, "ctrtool");
+    const auto makerom = options.bootstrapCia && !options.dryRun ? FindTool(options.toolsDirectory, "makerom") :
+                                                            std::filesystem::path{};
     const auto metadata = ReadCiaMetadata(input);
     const auto update = (metadata.titleId >> 32) == 0x0004000e;
     const auto applicationTitleId = (std::uint64_t{0x00040000} << 32) | (metadata.titleId & 0xffffffff);
@@ -237,6 +369,9 @@ void Mc3ds::RunPatcher(const TOptions &options) {
 
     auto arguments = std::vector<std::string>{"-v", "-y", "-n", "0", "--exheader=" + PathText(work / "exheader.bin"),
         "--exefsdir=" + PathText(work / "exefs")};
+    if (options.bootstrapCia && !options.dryRun) {
+        arguments.push_back("--romfs=" + PathText(work / "romfs.bin"));
+    }
     if (!seedDatabase.empty()) {
         seedDatabase = std::filesystem::canonical(seedDatabase);
         if (!std::filesystem::is_regular_file(seedDatabase) || std::filesystem::file_size(seedDatabase) > 16 * 1024 * 1024) {
@@ -284,6 +419,8 @@ void Mc3ds::RunPatcher(const TOptions &options) {
         throw std::runtime_error("Generated IPS did not reproduce the patched executable");
     }
 
+    const auto bootstrapHash = options.bootstrapCia ?
+        BuildBootstrapCia(work, ctrtool, makerom, productCode, metadata, originalCode, patched) : std::string{};
     if (Sha256File(input) != inputHash) {
         throw std::runtime_error("Input CIA changed while the patcher was running");
     }
@@ -298,9 +435,11 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     const auto titleDirectory = "/luma/titles/" + applicationTitleIdText + "/";
     auto report = std::ostringstream{};
     report << "Minecraft Old 3DS Patcher " << MC3DS_VERSION
-           << "\nOutput type: Luma IPS executable patch"
+           << (options.bootstrapCia ? "\nOutput type: Luma IPS and one-time bootstrap CIA" :
+                                      "\nOutput type: Luma IPS executable patch")
            << "\nInput CIA SHA-256: " << inputHash
            << "\ncode.ips SHA-256: " << ipsHash
+           << (options.bootstrapCia ? "\nbootstrap.cia SHA-256: " + bootstrapHash : "")
            << "\nSource title ID: " << HexNumber(metadata.titleId, 16)
            << "\nLuma title ID: " << applicationTitleIdText
            << "\nTitle version: " << metadata.version
@@ -310,6 +449,7 @@ void Mc3ds::RunPatcher(const TOptions &options) {
            << "Install code.ips in " << titleDirectory << " with Luma game patching enabled.\n"
            << "Existing romfs, locale, and unrelated files in the title directory are not changed.\n"
            << "Do not install external code.bin or exheader.bin beside this IPS.\n"
+           << (options.bootstrapCia ? "Install bootstrap.cia once with FBI, then apply code.ips before launching. Keep the CIA installed.\n" : "")
            << (update ? "Generated from update content. The matching Old 3DS bootstrap update must be installed.\n" :
                         "Generated from base content. The Old 3DS bootstrap base must be installed without an update.\n");
     if (snakeOnly) {
@@ -342,8 +482,19 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     auto outputStage = CWorkspace(outputDirectory);
     WriteFile(outputStage.path() / "code.ips", ipsPatch);
     WriteText(outputStage.path() / "report.txt", reportText);
+    if (options.bootstrapCia) {
+        std::filesystem::copy_file(work / "bootstrap.cia", outputStage.path() / "bootstrap.cia");
+        if (Sha256File(outputStage.path() / "bootstrap.cia") != bootstrapHash) {
+            throw std::runtime_error("Staged bootstrap CIA failed its checksum");
+        }
+    }
+
     if (Sha256File(outputStage.path() / "code.ips") != ipsHash) {
         throw std::runtime_error("Staged replacement files failed their checksums");
+    }
+
+    if (options.bootstrapCia) {
+        PublishFile(outputStage.path() / "bootstrap.cia", bootstrapPath);
     }
 
     ReplaceOutputFile(outputStage.path() / "report.txt", reportPath);
@@ -353,6 +504,8 @@ void Mc3ds::RunPatcher(const TOptions &options) {
     }
 
     std::cout << "Done: " << PathText(outputDirectory)
+              << (options.bootstrapCia ? "\nBootstrap CIA: " + PathText(bootstrapPath) : "")
+              << (options.bootstrapCia ? "\nBootstrap CIA SHA-256: " + bootstrapHash : "")
               << "\nLuma destination: " << titleDirectory
               << "\ncode.ips SHA-256: " << ipsHash
               << "\nPatched executable SHA-256: " << codeHash

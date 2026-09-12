@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MinecraftOld3dsPatcher VERSION 0.4.12 LANGUAGES CXX)
+project(MinecraftOld3dsPatcher VERSION 0.4.13 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,9 +31,10 @@ if(MINGW)
 endif()
 
 install(TARGETS mc3ds-patcher RUNTIME DESTINATION .)
-install(FILES README.md GUIDE.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md PERFORMANCE.md DEBUG_OVERLAY.md THIRD_PARTY.md LICENSE DESTINATION .)
+install(FILES README.md GUIDE.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md PERFORMANCE.md DEBUG_OVERLAY.md THIRD_PARTY.md LICENSE mc3ds-gui.py gui-requirements.txt DESTINATION .)
+install(DIRECTORY assets/fonts DESTINATION assets)
 
-option(MC3DS_FETCH_TOOLS "Download the pinned upstream CIA utility beside the patcher" OFF)
+option(MC3DS_FETCH_TOOLS "Download the pinned upstream CIA utilities beside the patcher" OFF)
 if(MC3DS_FETCH_TOOLS)
     if(WIN32)
         set(MC3DS_TOOL_PLATFORM windows)

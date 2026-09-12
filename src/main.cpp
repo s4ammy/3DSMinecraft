@@ -11,19 +11,23 @@ namespace Mc3ds {
 void Mc3ds::PrintHelp() {
     std::cout << "Minecraft Old 3DS Patcher " MC3DS_VERSION "\n\n"
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
-                 "  -o, --output DIRECTORY  Output folder for Luma code.ips\n"
+                 "  -o, --output DIRECTORY  Output folder for generated files\n"
                  "  --controls MODE        l-circle-pad (default) or circle-pad-pro\n"
                  "  --overlay              Enable FPS/debug overlay (update only; default off)\n"
-                 "  --tools-dir DIRECTORY   Folder containing ctrtool\n"
+                 "  --bootstrap-cia        Also build a one-time installable bootstrap CIA\n"
+                 "  --tools-dir DIRECTORY   Folder containing ctrtool and makerom\n"
                  "  --seeddb FILE           Local seeddb.bin for encrypted titles\n"
                  "  --seed-file FILE        Local 16-byte title seed instead of seeddb\n"
                  "  --allow-similar         Try unknown executables with strict signature guards\n"
                  "  --dry-run               Decrypt and check all patches without writing files\n"
                  "  -h, --help              Show this help\n\n"
-                 "The input is never modified. Only code.ips and report.txt are replaced.\n"
+                 "The input is never modified. code.ips and report.txt are replaced.\n"
+                 "Bootstrap CIAs are created only with --bootstrap-cia and never overwritten.\n"
                  "Supports the European v0.1.0 base game and v9.11.0 update.\n"
-                 "Use the update CIA when the matching Old 3DS bootstrap update is installed.\n"
-                 "Copy the outputs to /luma/titles/000400000017CA00/ with game patching enabled.\n";
+                 "Build the bootstrap base first; add the update if you use it.\n"
+                 "For later IPS changes, use the original CIA matching the installed update.\n"
+                 "Copy code.ips to /luma/titles/000400000017CA00/ with game patching enabled.\n"
+                 "Install bootstrap.cia with FBI once if you generated it. See GUIDE.md.\n";
 }
 
 int Mc3ds::Main(const std::vector<std::string> &arguments) {
@@ -59,6 +63,8 @@ int Mc3ds::Main(const std::vector<std::string> &arguments) {
                 options.controlMode = ParseControlMode(value().u8string());
             } else if (argument == "--overlay") {
                 options.enableOverlay = true;
+            } else if (argument == "--bootstrap-cia") {
+                options.bootstrapCia = true;
             } else if (argument == "--allow-similar") {
                 options.allowSimilar = true;
             } else if (argument == "--dry-run") {

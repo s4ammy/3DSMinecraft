@@ -10,6 +10,7 @@ namespace Mc3ds {
 
     TProcessResult RunProcess(const std::filesystem::path &program, const std::vector<std::string> &arguments);
     std::filesystem::path ExecutableDirectory();
+    void PublishFile(const std::filesystem::path &staged, const std::filesystem::path &destination);
     void ReplaceOutputFile(const std::filesystem::path &staged, const std::filesystem::path &destination);
 
     class CWorkspace {

@@ -11,6 +11,10 @@ When the bootstrap update is installed, generate the IPS from the original updat
 
 The retail SMDH is marked New 3DS-only, and retail ExHeader settings are incompatible with this Old 3DS patch. Luma IPS does not replace either one. Existing bootstrap installations provide those prerequisites and should not be uninstalled.
 
+Version 0.4.13 restores optional one-time bootstrap CIA generation with `--bootstrap-cia`. It rebuilds the base and update separately from original inputs, verifies title identity, metadata, original executable, icon, and RomFS, and writes `bootstrap.cia` beside the matching `code.ips`. Install the base and then the update if used, and apply the IPS before launching. Later executable changes still use only `code.ips`; the patch bytes and control profiles are unchanged from v0.4.12. The rebuilt packages are test-signed for CFW and have not had a separate physical-console installation check.
+
+The optional Python GUI in v0.4.13 offers the same bootstrap and IPS paths through two pages. It delegates patching and verification to the CLI executable.
+
 ## Reference SHA-256 hashes
 
 | File | SHA-256 |

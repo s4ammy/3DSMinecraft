@@ -10,7 +10,9 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <linux/fs.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -217,6 +219,19 @@ std::filesystem::path Mc3ds::ExecutableDirectory() {
     return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
 #else
     return std::filesystem::canonical("/proc/self/exe").parent_path();
+#endif
+}
+
+void Mc3ds::PublishFile(const std::filesystem::path &staged, const std::filesystem::path &destination) {
+#ifdef _WIN32
+    if (!MoveFileExW(staged.c_str(), destination.c_str(), MOVEFILE_WRITE_THROUGH)) {
+        throw std::runtime_error("Cannot publish bootstrap CIA. Check free space, permissions, and existing files.");
+    }
+#else
+    if (syscall(SYS_renameat2, AT_FDCWD, staged.c_str(), AT_FDCWD, destination.c_str(), RENAME_NOREPLACE) != 0) {
+        throw std::runtime_error("Cannot publish bootstrap CIA without replacing an existing file: " +
+            std::error_code(errno, std::generic_category()).message());
+    }
 #endif
 }
 
