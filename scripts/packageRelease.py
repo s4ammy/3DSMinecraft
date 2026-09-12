@@ -64,7 +64,7 @@ def PackageRelease():
             shutil.copy2(binaryPath / (relativeName + extension), stagingPath / (relativeName + extension))
             (stagingPath / (relativeName + extension)).chmod(0o755)
 
-        for name in ["README.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "PERFORMANCE.md", "DEBUG_OVERLAY.md", "THIRD_PARTY.md", "LICENSE"]:
+        for name in ["README.md", "GUIDE.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "PERFORMANCE.md", "DEBUG_OVERLAY.md", "THIRD_PARTY.md", "LICENSE"]:
             shutil.copy2(projectPath / name, stagingPath / name)
 
         shutil.copy2(projectPath / "licenses/GPL-3.0.txt", stagingPath / "licenses/GPL-3.0.txt")
