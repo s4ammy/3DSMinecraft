@@ -97,18 +97,25 @@ jobs:
             GH_REPO: ${{ github.repository }}
             RELEASE_TAG: ${{ needs.version.outputs.release }}
         steps:
+            -   uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+                with:
+                    persist-credentials: false
             -   uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
                 with:
                     pattern: mc3ds-patcher-*-x64
                     merge-multiple: true
                     path: dist
+            -   name: Verify prepared IPS files
+                run: python3 scripts/checkIpsRelease.py --directory "release/ips/$RELEASE_TAG"
             -   name: Verify packages and publish release
                 working-directory: dist
                 shell: bash
                 run: |
                     set -euo pipefail
                     sha256sum --check ./*.sha256
+                    cp "../release/ips/$RELEASE_TAG"/code-*.ips .
                     cat ./*.sha256 > SHA256SUMS.txt
+                    cat "../release/ips/$RELEASE_TAG/SHA256SUMS.txt" >> SHA256SUMS.txt
                     releaseOptions=()
                     if [[ "$RELEASE_TAG" == *-* ]]; then
                         releaseOptions+=(--prerelease)
@@ -136,9 +143,9 @@ jobs:
 
                     if [[ "$releaseExists" == true ]]; then
                         gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA"
-                        gh release upload "$RELEASE_TAG" ./*.tar.gz ./*.zip SHA256SUMS.txt --clobber
+                        gh release upload "$RELEASE_TAG" ./*.tar.gz ./*.zip ./*.ips SHA256SUMS.txt --clobber
                     else
-                        gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip SHA256SUMS.txt \
+                        gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip ./*.ips SHA256SUMS.txt \
                             --target "$GITHUB_SHA" --draft --title "$RELEASE_TAG" --generate-notes "${releaseOptions[@]}"
                     fi
 
