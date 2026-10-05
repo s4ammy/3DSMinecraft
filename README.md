@@ -1,5 +1,7 @@
 # Minecraft Old 3DS Patcher
 
+[Discord Server](https://discord.gg/6FCyzkDvX3)
+
 This patcher makes a Luma `code.ips` file for Minecraft: New Nintendo 3DS Edition. It adds Old 3DS controls and memory changes, with an optional FPS overlay for the update.
 
 **Start with the [setup guide](GUIDE.md).** It covers the one-time console setup, the Python GUI or PC commands, and copying the patch to your SD card.
