@@ -2,7 +2,7 @@
 
 Version 0.4.8 introduced a bottom-screen overlay for the European v9.11.0 update, with either control profile. From v0.4.12 it is opt-in: add `--overlay` when generating the patch. Without that flag, the overlay is disabled. This is a patch-time choice, not an in-game settings toggle. The base-game build does not support `--overlay` and rejects it with an explanatory error.
 
-The v0.4.14 touch-stick profile also accepts `--overlay`. Both draw over the map area, so some debug text overlaps the circle. Leave the debug overlay off for the clearest view of the stick.
+The unified update controls patch also accepts `--overlay`. Selecting Touch stick in-game draws over the same map area, so some debug text overlaps the circle. Leave the debug overlay off for the clearest view of the stick.
 
 - FPS: newly accepted upper-screen buffers per second, averaged over a window of at least one second.
 - The adjacent milliseconds value: average interval between those frames.

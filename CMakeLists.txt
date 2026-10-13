@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
-project(MinecraftOld3dsPatcher VERSION 0.4.15 LANGUAGES CXX)
+project(MinecraftOld3dsPatcher VERSION 0.4.16 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_library(patcherCore src/Bytes.cpp src/Platform.cpp src/Signature.cpp src/Patches.cpp src/UpdatePatches.cpp src/ContainerCancel.cpp)
+add_library(patcherCore src/Bytes.cpp src/Platform.cpp src/Signature.cpp src/Patches.cpp src/UpdatePatches.cpp src/ContainerCancel.cpp src/RuntimeControlsPatch.cpp)
 target_include_directories(patcherCore PUBLIC src)
 find_package(Threads REQUIRED)
 target_link_libraries(patcherCore PUBLIC Threads::Threads)
@@ -35,6 +35,14 @@ install(FILES README.md GUIDE.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md
 install(DIRECTORY assets/fonts DESTINATION assets)
 
 include(CTest)
+if(BUILD_TESTING)
+    add_executable(controlSettingsTests tests/ControlSettingsTests.cpp patches/ControlSettings.cpp)
+    target_include_directories(controlSettingsTests PRIVATE patches)
+    add_test(NAME runtimeControlSettings COMMAND controlSettingsTests)
+    add_executable(buildRuntimeFixture tests/BuildRuntimeFixture.cpp)
+    target_link_libraries(buildRuntimeFixture PRIVATE patcherCore)
+endif()
+
 if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/IpsTests.cpp")
     add_executable(ipsTests tests/IpsTests.cpp)
     target_link_libraries(ipsTests PRIVATE patcherCore)

@@ -1,5 +1,43 @@
 # Performance validation
 
+## 2026-10-03: block rebuild stage measurements
+
+The saved mesh-latency investigation measured six block edits in private muted Azahar. Worker rebuilds took about 220-222 ms, including about 174 ms of tessellation; mesh installation took under 0.5 ms. These guest elapsed intervals include waits and diagnostic overhead and do not establish physical Old 3DS or GPU presentation timing. One diagnostic run hit an unresolved allocation failure; its evidence is retained separately from the successful repeats. A separate hidden-face prototype passed 258 native control-flow cases. A matched six-edit comparison reduced median worker time from 220.53 to 218.51 ms, about 0.9%; this small experiment remains outside test 3 while larger gains are investigated. Test 3 remains unchanged and hardware testing is pending.
+
+## 2026-10-03: corrected full test and biome lookup optimization
+
+The current performance test 3 retains touch controls, background block rebuilding, late-frame completion and all earlier optimization experiments. Test 2 fixed an IPS compatibility defect that left 82 incorrect executable bytes on the actual private legacy bootstrap. The defect reproduced an Azahar startup fault; its contribution to the user's hardware lag is not yet established. Test 3 changes only the touch-controller slot comparison, preventing old menu presses from being replayed when camera input selects an inactive controller.
+
+A new guarded biome lookup uses the game's current chunk cache directly. Valid hits take 26 versus 103 guest instructions. A controlled 6,400-query refresh trace, including cache misses, uses about 40.6% fewer lookup instructions. This is not a whole-game FPS percentage. The helper adds no allocations or persistent cache, and misses retain the original path with some extra instructions.
+
+The exact candidate passed 2,636 native biome cases, touch/HUD, block-dispatch and completion checks, plus private muted Azahar loading, block breaking/replacement, short movement, Save & Quit and fresh-process reload. Single-run loading observations are about 40 seconds and do not establish a speedup. An unresolved 4-FPS OCR outlier is retained in the report; a subsequent movement check showed 55-60 emulator FPS. Physical Old 3DS speed and exact block mesh latency remain unverified.
+
+Those component results are from test 2; all performance bytes are unchanged in test 3. Fresh test-3 checks cover the first touch after loading, physical-input alternation, deliberate inventory use, three blocks broken/replaced, walking and jumping. Its retained block recording showed 56-60 emulator FPS. The native controller regression also verifies no inactive-queue growth across 120 held-touch frames. Hardware testing remains pending.
+
+Use the new test's top-level `code.ips`. Its optional comparison file preserves all earlier features and optimizations and isolates only the new biome fast path. The regular patcher now includes the IPS writer fix; the runtime experiments remain in the separate local test package. Canonical annotations have been imported, saved through IDA and exported, and the dashboard was refreshed with no stale warning.
+
+The older sections below record the evidence available at each earlier stage. Their blocked-emulator/export statements are historical and are superseded by the current investigation above.
+
+## Combined hardware test: v0.4.15-performance-test-1
+
+The separate combined test package includes the v0.4.15 touch/input and block-scheduling fixes, lighting ring queue, earlier lighting-coordinate reuse and biome surface lookup, and all 246 selected division/copy call changes. It provides the three control modes with the FPS/debug overlay disabled, plus the exact matching v0.4.15 rollback IPS files. The touch-stick circle remains visible. The regular patcher stays at v0.4.15.
+
+Validation runs against the exact combined binaries, with fresh payload compilation, complete component-delta checks, rejected address overlaps and IPS reconstruction. Native ARM routine tests cover lighting, queue lifetime, biome fallback, instruction helpers, touch capture, block dispatch and worker completions. This is a hardware-test candidate: there is no fresh whole-game emulator or Old 3DS performance result, and the full block-visibility delay is not established as eliminated. The test queue still needs physical low-memory and long-session coverage.
+
+## 2026-10-02 shared-helper instruction research
+
+The instruction audit adds an isolated candidate for 85 unsigned power-of-two division calls and 161 fixed-size aligned copies. Matching division paths use 9 guest instructions versus 10 to 124 in the representative original cases. The 17/25-byte copies use 9/11 instructions versus 19, and reduce stack reads plus writes from 64 to 16 bytes per call. These are helper-level measurements, not gameplay FPS or loading-time gains.
+
+Native ARM checks cover 57,600 division cases, 48 zero-handler entries, 1,024 copy cases, all 246 patched calls, and the static copy-size setup proofs. Division quotient/remainder, flags and preserved registers match; copies also match complete test memory and all observed core registers. Runtime divisor mismatches retain the original division path with two extra instructions. The three no-overlay control profiles each build guarded division, copy and combined variants with IPS round-trip checks. The 296-byte payload adds no allocations or BSS. The normal patcher does not include this research, and whole-game/Old 3DS timing remains pending.
+
+## 2026-10-02 broader optimization research
+
+The loading and gameplay audit ranks lighting-queue allocations, repeated biome-color work during mesh rebuilds, resource loading, entity collisions and worker/render scheduling. Its separate builder adapts the earlier ring-queue experiment to the three exact v0.4.15 no-overlay profiles. This research is not integrated into the production patcher.
+
+Seven controlled scenes now execute the native ARM light propagation and recalculation routines, comparing block/light storage, section touched flags and queued-position order. All match. Guest instructions fall by 8.28% to 9.26% with the test allocator. In the open-air source-add/remove case, allocation calls fall from 47,693 to 9 and peak live eight-byte-aligned queue allocations from 253,736 to 98,304 bytes. The ring retains 65,536 bytes until context destruction in that case; its larger contiguous requests still need fragmented-heap and low-memory checks. Six native constructor/destructor cycles and the existing 6,336-operation FIFO check also pass.
+
+These are routine-level results, not loading-time or gameplay-FPS measurements. Fresh private Azahar execution is blocked by this session's display/socket restrictions. Missing-section allocation, full sky-column initialization, long sessions and hardware behavior remain unverified. Full hashes, counts, reproduction steps and public-source references are in the audit directory. Canonical IDA import/dashboard refresh is also blocked by the read-only analysis workspace; the staged annotations and temporary IDA snapshot do not update the stale dashboard.
+
 ## v0.4.15 touch input and block visibility candidate
 
 User hardware evidence, 2026-10-02: on an Old 3DS, v0.4.14 stopped the block-edit hitch and the touch camera rotated correctly. The user reported that broken blocks remained visible for about one second after collision disappeared, and stick gestures also triggered crouch or inventory. These are user observations, not instrumented timings.
@@ -21,7 +59,11 @@ Validation completed locally:
 
 Actual mesh construction still takes time, and a completion callback itself has a cost. The new hook removes a demonstrated source of starvation; it does not prove the user's entire one-second delay is resolved. Test single and rapid edits, chunk boundaries, lighting, touch gestures and save/reload on the Old 3DS. The separate night-time slowdown/crash remains outside this change.
 
-Private regression fixtures and harnesses are kept out of the release source. The published payload generators, `scripts/buildTouchStickPayload.py` and `scripts/buildWorkerCompletionPayload.py`, accept `--check --reference-code ...` to verify their generated headers against a private stock update executable.
+Azahar validation remains blocked by this session's denied socket operations. Previous private Xvfb and Qt offscreen attempts failed; audio was disabled and no physical display or keyboard/mouse input was used. No new emulator timing or screenshot is claimed.
+
+Canonical IDA saves and dashboard refresh remain blocked because `/home/admin/Desktop/Reversing/3DSMCRE` is read-only in this session. Update-only names and comments are staged in `experiments/touchStick/idaAnnotations.json` and applied to a temporary IDA copy. The existing stale dashboard export is unchanged. Names and static annotations are separate from the validation above.
+
+Reproduce with `ctest --test-dir build-touch --output-on-failure` and a private `MC3DS_UPDATE_FIXTURE`. `scripts/buildTouchStickPayload.py` and `scripts/buildWorkerCompletionPayload.py` accept `--check --reference-code ...`. The Unicorn checks are `scripts/checkTouchStickPayload.py`, `scripts/checkBlockRebuildDispatch.py` and `scripts/checkWorkerCompletion.py`; their `--help` lists the required private fixtures.
 
 ## v0.4.10 aligned-allocation improvement
 

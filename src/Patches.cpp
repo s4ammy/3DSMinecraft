@@ -85,6 +85,7 @@ Mc3ds::TPatchResult Mc3ds::PatchGame(const TBytes &code, const TBytes &exheader,
             inputHash != updateLCirclePadCodeHash && inputHash != updateCirclePadProCodeHash &&
             inputHash != updateLCirclePadOverlayCodeHash && inputHash != updateCirclePadProOverlayCodeHash &&
             inputHash != updateTouchStickCodeHash && inputHash != updateTouchStickOverlayCodeHash &&
+            inputHash != updateRuntimeControlsCodeHash && inputHash != updateRuntimeControlsOverlayCodeHash &&
             inputHash != previousUpdateTouchStickCodeHash && inputHash != previousUpdateTouchStickOverlayCodeHash,
         "This executable is already patched; start with an original CIA");
 

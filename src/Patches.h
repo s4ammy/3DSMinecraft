@@ -18,6 +18,8 @@ namespace Mc3ds {
     inline const std::string previousUpdateTouchStickOverlayCodeHash = "886e823e5c9e2dd5444db5b359f0f8a8013fc8cb38596f24672a77023a2d69b0";
     inline const std::string updateTouchStickCodeHash = "56253fce9ff61c4e1be81acf552f536fc17c487c984c9201912cb83e683daaae";
     inline const std::string updateTouchStickOverlayCodeHash = "cd07826c69a129bf681e8897cb1b9b6be26bf21b28c1d148a0b13964cb8521ee";
+    inline const std::string updateRuntimeControlsCodeHash = "0775fb339059313f0ab1d3fb67ed662f8507862d52ae71b19c30fb57282f9fa7";
+    inline const std::string updateRuntimeControlsOverlayCodeHash = "4070d5b75f76ffeb7920c611a987959fa3b2a9e34d4d9572ff8c8de55b19c196";
     inline constexpr std::uint32_t lumaLayeredFsPayloadSize = 0x114;
 
     enum class EControlMode {

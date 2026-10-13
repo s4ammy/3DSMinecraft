@@ -336,12 +336,14 @@ class CFormPage(QWidget):
         layout.addWidget(sourceCard)
 
         optionsCard, optionsLayout = MakeCard("Patch options")
-        optionsLayout.addWidget(QLabel("Controls"))
+        optionsLayout.addWidget(QLabel("Base-game controls"))
         self.controls = QComboBox()
         self.controls.addItem("L + Circle Pad", "l-circle-pad")
         self.controls.addItem("Circle Pad Pro", "circle-pad-pro")
-        self.controls.addItem("Touch stick (update only)", "touch-stick")
         optionsLayout.addWidget(self.controls)
+        controlsHint = QLabel("The update includes all three modes and custom bindings in Options > Controls.")
+        controlsHint.setWordWrap(True)
+        optionsLayout.addWidget(controlsHint)
         self.overlay = QCheckBox("Show the FPS/debug overlay (update only)")
         optionsLayout.addWidget(self.overlay)
         self.checkOnly = QCheckBox("Check inputs only, without writing files")
@@ -371,15 +373,12 @@ class CFormPage(QWidget):
 
     def updateOptions(self) -> None:
         updateSelected = bool(self.updateField.path()) if self.bootstrapMode else self.inputType.currentIndex() == 0
-        self.controls.model().item(2).setEnabled(updateSelected)
-        if not updateSelected and self.controls.currentData() == "touch-stick":
-            self.controls.setCurrentIndex(0)
-
         self.overlay.setEnabled(updateSelected)
         if not updateSelected:
             self.overlay.setChecked(False)
 
         baseNeeded = self.bootstrapMode or not updateSelected
+        self.controls.setEnabled(baseNeeded)
         self.seedType.setEnabled(baseNeeded)
         self.seedField.setEnabled(baseNeeded and self.seedType.currentIndex() != 2)
         if not self.bootstrapMode:
@@ -420,12 +419,11 @@ class CFormPage(QWidget):
         if self.bootstrapMode:
             basePath = checkedCia(self.baseField, "base")
             baseOutput = outputPath / "bootstrap-base"
-            baseControls = ["--controls", "l-circle-pad"] if self.controls.currentData() == "touch-stick" else controls
-            tasks.append(("base bootstrap CIA", [str(basePath), *seed, *baseControls, "--bootstrap-cia", "-o", str(baseOutput)]))
+            tasks.append(("base bootstrap CIA", [str(basePath), *seed, *controls, "--bootstrap-cia", "-o", str(baseOutput)]))
             if self.updateField.path():
                 updatePath = checkedCia(self.updateField, "update")
                 updateOutput = outputPath / "bootstrap-update"
-                updateArguments = [str(updatePath), *controls, "--bootstrap-cia", "-o", str(updateOutput)]
+                updateArguments = [str(updatePath), "--bootstrap-cia", "-o", str(updateOutput)]
                 if self.overlay.isChecked():
                     updateArguments.append("--overlay")
 
@@ -438,8 +436,9 @@ class CFormPage(QWidget):
         else:
             updateSelected = self.inputType.currentIndex() == 0
             inputPath = checkedCia(self.inputField, "update" if updateSelected else "base")
-            arguments = [str(inputPath), *controls, "-o", str(outputPath)]
+            arguments = [str(inputPath), "-o", str(outputPath)]
             if not updateSelected:
+                arguments.extend(controls)
                 arguments.extend(seed)
             elif self.overlay.isChecked():
                 arguments.append("--overlay")

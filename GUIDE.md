@@ -61,7 +61,7 @@ On Windows PowerShell, use the same options with `mc3ds-patcher.exe`:
 .\mc3ds-patcher.exe "Minecraft-update.cia" --bootstrap-cia -o "bootstrap-update"
 ```
 
-Run the update command only if you want the update. Omit `--seed-file` for a decrypted base CIA, or use `--seeddb` if you have a matching seed database. Add `--controls circle-pad-pro` to both commands if you want that control mode. Use your actual file paths if they differ from these examples.
+Run the update command only if you want the update. Omit `--seed-file` for a decrypted base CIA, or use `--seeddb` if you have a matching seed database. Add `--controls circle-pad-pro` only to the base command if you want that base-only fallback. Select the update's mode in Options > Controls. Use your actual file paths if they differ from these examples.
 
 Each output folder contains `bootstrap.cia`, `code.ips`, and `report.txt`. The CIA has the original executable with the Old 3DS metadata it needs. The Luma IPS adds the gameplay changes, so copy it before launching the game. The patcher verifies the CIA before saving it and will not overwrite an existing `bootstrap.cia`.
 
@@ -79,7 +79,7 @@ If compatible bootstrap titles are already installed, skip this section. A v0.3.
 
 If you just made the bootstrap CIAs, you already have `code.ips`. Use the one from `bootstrap-update` when the update is installed, or `bootstrap-base` when it is not.
 
-For the supported European base v0.1.0 and update v9.11.0, [Releases](https://github.com/s4ammy/3DSMinecraft/releases) also provide ready-made IPS files. Choose a `code-base-...ips` file if no update is installed, or a `code-update-...ips` file if the matching bootstrap update is installed. Choose `l-circle-pad` or `circle-pad-pro` to match your installed controls, or `touch-stick` for the update. The update files ending in `-overlay.ips` enable the FPS/debug overlay. Rename the chosen file to `code.ips` when copying it to the SD card. These IPS files do not replace the one-time bootstrap CIA installation.
+For the supported European base v0.1.0 and update v9.11.0, [Releases](https://github.com/s4ammy/3DSMinecraft/releases) also provide ready-made IPS files. Choose a `code-base-...ips` file if no update is installed, or a `code-update-...ips` file if the matching bootstrap update is installed. For this source revision, the update asset is `code-update-controls.ips`, containing all three modes; the base assets still offer `l-circle-pad` and `circle-pad-pro`. The update files ending in `-overlay.ips` enable the FPS/debug overlay. Rename the chosen file to `code.ips` when copying it to the SD card. These IPS files do not replace the one-time bootstrap CIA installation.
 
 For later changes, run the patcher again without `--bootstrap-cia`. With an installed update, use:
 
@@ -95,9 +95,9 @@ On Windows PowerShell, run:
 
 For the base game without an update, replace the CIA name with `Minecraft.cia` and add `--seed-file "title-seed.bin"` if it is encrypted. Use your actual file paths if they differ from these examples.
 
-The default controls use L + Circle Pad to look, B to place or use, and L + Y to drop. Add `--controls circle-pad-pro` if you use a Circle Pad Pro. Add `--overlay` to show the FPS/debug overlay on the update; it is off by default and is unavailable for the base game. Add `--dry-run` to check the CIA and patch profile without writing output. See [all controls](INPUTS_EXPLAINED.md) and [overlay details](DEBUG_OVERLAY.md).
+The default controls use L + Circle Pad to look, B to place or use, and L + Y to drop. On the update, switch modes and edit bindings in Options > Controls. For a base-only installation, add `--controls circle-pad-pro` if you use that accessory. Add `--overlay` to show the FPS/debug overlay on the update; it is off by default and is unavailable for the base game. Add `--dry-run` to check the CIA and patch profile without writing output. See [all controls](INPUTS_EXPLAINED.md) and [overlay details](DEBUG_OVERLAY.md).
 
-For the update's touch-stick mode, add `--controls touch-stick`. It places the camera stick over the map and keeps the original L=use, R=mine and B=drop bindings. In the GUI, choose **Touch stick (update only)**. During first-time GUI setup, this selection gives the base bootstrap its default L + Circle Pad fallback and the update the touch stick. For CLI bootstrap setup, apply `--controls touch-stick` only to the update command. An existing compatible default bootstrap needs only the new `code.ips`.
+For touch-stick mode, select **Mode: Touch stick** in the update's **Options > Controls** page. It places the camera stick over the map and defaults to L=use, R=mine, and B=drop. No IPS replacement or bootstrap reinstallation is needed to change modes. The GUI's control dropdown now applies only to the base game.
 
 The output folder contains `code.ips` and `report.txt`. Running the patcher again with the same output folder replaces those two files. It leaves a `bootstrap.cia` there alone.
 
@@ -138,7 +138,7 @@ The executable is in `build` on Linux or `build\Release` on Windows. MinGW-w64 a
 
 Pushing to `main` builds both platforms and publishes the version from `CMakeLists.txt`. Published releases are left alone, so bump that version before the next release. An explicit matching `v*` tag also works, including prereleases. Other branches, pull requests, and manual runs produce build artifacts only.
 
-Release jobs also publish eight IPS files and include their hashes in `SHA256SUMS.txt`. Before publishing a new version, generate its IPS files from the private reference base and update CIAs with the matching patcher binary:
+Release jobs also package four IPS files and include their hashes in `SHA256SUMS.txt`. Before publishing a new version, generate its IPS files from the private reference base and update CIAs with the matching patcher binary:
 
 ```sh
 python3 scripts/prepareIpsRelease.py --patcher /path/to/mc3ds-patcher \
@@ -147,6 +147,6 @@ python3 scripts/prepareIpsRelease.py --patcher /path/to/mc3ds-patcher \
 python3 scripts/checkIpsRelease.py --directory release/ips/vVERSION
 ```
 
-Replace `vVERSION` with the version in `CMakeLists.txt`, such as `v0.4.15`. Include the generated `release/ips/vVERSION` directory in the release source. The workflow checks all eight IPS files before publishing. Original CIAs and seeds stay private and are not included in release assets.
+Replace `vVERSION` with the version in `CMakeLists.txt`, such as `v0.4.16`. Include the generated `release/ips/vVERSION` directory in the release source. The workflow checks all four IPS files before publishing. Original CIAs and seeds stay private and are not included in release assets.
 
-For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.15`. On Windows, use `--platform windows --binary-dir build/Release`. Output goes to `dist`.
+For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.16`. On Windows, use `--platform windows --binary-dir build/Release`. Output goes to `dist`.

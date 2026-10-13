@@ -3,9 +3,9 @@
 #include "PerformanceData.h"
 #include "OverlayData.h"
 #include "SignatureData.h"
-#include "ContainerCancel.h"
-#include "TouchStickData.h"
 #include "WorkerCompletionData.h"
+#include "RuntimeControlsPatch.h"
+#include "RuntimeControlsData.h"
 
 #include <algorithm>
 #include <map>
@@ -41,11 +41,12 @@ void Mc3ds::RelocateUpdateBranch(TBytes &payload, std::uint32_t payloadAddress, 
 
 Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exheader, const TBytes &icon, bool allowSimilar,
     EControlMode controlMode, bool enableOverlay) {
-    const auto circlePadPro = controlMode == EControlMode::CIRCLE_PAD_PRO;
-    const auto touchStick = controlMode == EControlMode::TOUCH_STICK;
+    Require(controlMode == EControlMode::L_CIRCLE_PAD,
+        "Update controls are now configurable in Options > Controls; omit --controls when building the update");
     const auto inputHash = Sha256(code);
     const auto known = inputHash == updateOriginalCodeHash;
-    Require(known || allowSimilar, "Unrecognized update executable SHA-256: " + inputHash + ". Use --allow-similar to try the guarded update signatures; compatibility is not guaranteed.");
+    Require(known, "In-game controls require the exact supported v9.11.0 update executable; --allow-similar cannot bypass its ABI checks. SHA-256: " + inputHash);
+    static_cast<void>(allowSimilar);
     Require(exheader.size() == 0x800, "Expected a complete update extended header");
     auto normalizedHeader = exheader;
     normalizedHeader.at(0xe) = 0;
@@ -73,8 +74,8 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
         "Update segments or executable size are inconsistent");
     const auto bssStart = CheckedAdd(dataAddress, dataSize);
     const auto bssEnd = CheckedAdd(bssStart, bssSize);
-    const auto extraBssSize = circlePadPro ? 0x1040U : 16U;
-    Require((bssEnd & (circlePadPro ? 7U : 3U)) == 0, "Update control storage must be aligned");
+    const auto extraBssSize = 16U;
+    Require((bssEnd & 3U) == 0, "Update control storage must be aligned");
     const auto controlsOffset = CheckedAdd(textSize, 3) & ~3U;
     const auto pickupOffset = CheckedAdd(controlsOffset, 0x100);
     const auto accessoryOffset = CheckedAdd(pickupOffset, 0x20);
@@ -112,7 +113,6 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     const auto chunkBase = Read32(code, initializerLiteral);
     Require(chunkBase >= bssStart && CheckedAdd(chunkBase, 57 * 8) <= bssEnd, "Update chunk table is outside BSS");
     const auto nativeHookAddress = addressOf("nativeHidHook");
-    const auto nativeContinuation = CheckedAdd(nativeHookAddress, 0x38);
     Require(ArmBranchTarget(Read32(code, anchors.at("nativeHidHook")), nativeHookAddress) == addressOf("accessoryStatus"),
         "Native HID hook does not call the matched accessory status routine");
     const auto particleCallAddress = addressOf("particleCall");
@@ -183,21 +183,6 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
         Require(Sha256(guardedBytes) == guard.hash,
             "Overlay ABI differs from the supported update: " + std::string(guard.name));
     }
-    if (touchStick) {
-        Require(known && bssEnd == 0xb3fc30 && controlsOffset == updateTouchHooksOffset &&
-                accessoryOffset == updateTouchDiskOffset && updateTouchMainOffset == 0x25c750 &&
-                updateTouchInputHookAddress == textAddress + controlsOffset && addressOf("inputHook") == 0x108120,
-            "Touch-stick mode requires the exact supported update layout");
-        for (const auto &guard : updateTouchGuards) {
-            RequireRange(code.size(), guard.offset, guard.size);
-            const auto bytes = TBytes(code.begin() + static_cast<std::ptrdiff_t>(guard.offset),
-                code.begin() + static_cast<std::ptrdiff_t>(guard.offset + guard.size));
-            Require(Sha256(bytes) == guard.hash, "Touch-stick ABI changed: " + std::string(guard.name));
-        }
-
-        Require(Read32(code, 0x579000) == 0x0bfff4ad && Read32(code, 0x579344) == 0xe92d41f0,
-            "Touch-stick HUD hooks differ from the supported update");
-    }
     Require(updateOverlayOffset + updateOverlayCapacity <= textSize &&
             updateOverlayStateAddress >= bssStart &&
             updateOverlayStateAddress + updateOverlayStateCapacity <= bssEnd,
@@ -257,10 +242,11 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     claimRange(updateHeapSearchHookOffset, 4);
     claimRange(updateAlignedAllocationHookOffset, 4);
     claimRange(updateLateCompletionHookOffset, 4);
-    if (touchStick) {
-        claimRange(0x25c74c, 0x390);
-        claimRange(0x579000, 4);
-        claimRange(0x579344, 4);
+    for (const auto &region : updateRuntimeControlsRegions) {
+        claimRange(region.offset, region.capacity);
+    }
+    for (const auto offset : {0x25c74cU, 0x579000U, 0x579344U, 0x135634U, 0x1362ccU, 0x136598U, 0x136e0cU, 0x532cd0U, 0x535034U}) {
+        claimRange(offset, 4);
     }
     for (const auto offset : inflateCallbackOffsets) {
         claimRange(offset, 4);
@@ -315,14 +301,11 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     auto report = std::ostringstream{};
     report << "Executable SHA-256: " << inputHash << "\nProfile: European v9.11.0 update"
            << (known ? " reference executable\n" : " experimental signature match\n")
-           << "Control mode: " << ControlModeName(controlMode) << "\n";
+           << "Controls: in-game mode selection and per-mode gameplay/menu bindings\n";
     for (const auto &location : locations) {
         const auto &spec = *location.spec;
         if (spec.kind == EWriteKind::CONTROL_BINDING) {
             result.ipsOverwriteRanges.push_back({location.offset, 4});
-        }
-
-        if ((circlePadPro || touchStick) && spec.kind == EWriteKind::CONTROL_BINDING) {
             continue;
         }
 
@@ -337,71 +320,30 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
         report << spec.name << " at code+0x" << HexNumber(location.offset) << "\n";
     }
 
-    auto controls = FromHex(updateControlsHex);
     auto pickup = FromHex(updatePickupHex);
-    auto accessory = FromHex(updateAccessoryHex);
     auto performance = FromHex(updatePerformanceHex);
     const auto blockLookup = FromHex(updateBlockLookupHex);
     const auto lightLookup = FromHex(updateLightLookupHex);
-    Require(controls.size() == 0x100 && pickup.size() == 0x20 && accessory.size() == 0x14c && performance.size() == updatePerformanceSize &&
+    Require(pickup.size() == 0x20 && performance.size() == updatePerformanceSize &&
             blockLookup.size() == 0xe8 && lightLookup.size() == updateLightLookupSize && performance.size() + lightLookup.size() == updatePayloadSize,
         "Invalid update payload sizes");
     Require(Sha256(performance) == updatePerformanceHash && Sha256(blockLookup) == updateBlockLookupHash &&
             Sha256(lightLookup) == updateLightLookupHash,
         "Performance payload checksum or linked targets differ");
-    const auto controlsAddress = CheckedAdd(textAddress, controlsOffset);
     const auto pickupAddress = CheckedAdd(textAddress, pickupOffset);
-    const auto accessoryAddress = CheckedAdd(textAddress, accessoryOffset);
     const auto performanceAddress = CheckedAdd(textAddress, performanceOffset);
     Require(performanceAddress == 0x918bc0, "Performance payload address differs from its linked address");
-    RelocateUpdateBranch(controls, controlsAddress, 0x98, CheckedAdd(addressOf("inputHook"), 4));
-    Write32(controls, 0x9c, bssEnd);
     RelocateUpdateBranch(pickup, pickupAddress, 4, addressOf("particleTick"));
     RelocateUpdateBranch(pickup, pickupAddress, 0x18, addressOf("pickupTickLoop"));
     Write32(pickup, 0x1c, CheckedAdd(particleCallAddress, 4));
     std::copy(pickup.begin(), pickup.end(), result.code.begin() + pickupOffset);
     Write32(result.code, anchors.at("particleCall"), ArmBranch(particleCallAddress, pickupAddress));
-    Write32(result.code, anchors.at("nativeHidHook"), ArmBranch(nativeHookAddress, circlePadPro ? accessoryAddress : nativeContinuation));
-    if (circlePadPro) {
-        for (const auto &relocation : std::vector<std::pair<std::uint32_t, std::uint32_t>>{
-                 {0x5c, nativeContinuation}, {0x84, addressOf("accessoryStatus")}, {0x8c, addressOf("accessoryStop")},
-                 {0x90, addressOf("accessoryStreaming")}, {0xa4, addressOf("accessoryStart")},
-                 {0x12c, CheckedAdd(addressOf("accessoryShutdown"), 4)}}) {
-            RelocateUpdateBranch(accessory, accessoryAddress, relocation.first, relocation.second);
-        }
-
-        Write32(accessory, 0x130, bssEnd);
-        Write32(accessory, 0x134, CheckedAdd(accessoryAddress, 0xe0));
-        Write32(accessory, 0x138, CheckedAdd(accessoryAddress, 0x60));
-        Write32(accessory, 0x13c, addressOf("threadEntry"));
-        Write32(accessory, 0x140, CheckedAdd(bssEnd, extraBssSize));
-        Write32(accessory, 0x144, initializedAddress);
-        std::copy(accessory.begin(), accessory.end(), result.code.begin() + accessoryOffset);
-        Write32(result.code, anchors.at("accessoryShutdown"), ArmBranch(addressOf("accessoryShutdown"), CheckedAdd(accessoryAddress, 0xe8)));
-        report << "Accessory worker uses signature-resolved SDK entry points. Hardware validation pending.\n";
-    } else if (touchStick) {
-        const auto installTouchPayload = [&](const std::string &hex, const std::string &hash, std::size_t offset, std::size_t capacity) {
-            const auto payload = FromHex(hex);
-            Require(payload.size() <= capacity && Sha256(payload) == hash, "Invalid touch-stick payload");
-            RequireRange(result.code.size(), offset, payload.size());
-            std::copy(payload.begin(), payload.end(), result.code.begin() + static_cast<std::ptrdiff_t>(offset));
-        };
-        std::fill_n(result.code.begin() + 0x25c74c, 0x390, std::uint8_t{0});
-        Write32(result.code, 0x25c74c, 0xe12fff1e);
-        installTouchPayload(updateTouchMainHex, updateTouchMainHash, updateTouchMainOffset, 0x38c);
-        installTouchPayload(updateTouchHooksHex, updateTouchHooksHash, updateTouchHooksOffset, 0x100);
-        installTouchPayload(updateTouchDiskHex, updateTouchDiskHash, updateTouchDiskOffset, 0x14c);
-        Write32(result.code, anchors.at("inputHook"), ArmBranch(addressOf("inputHook"), updateTouchInputHookAddress));
-        Write32(result.code, 0x579000, (ArmBranch(0x679000, updateDrawTouchStickAddress) & 0x00ffffffU) | 0x0b000000U);
-        Write32(result.code, 0x579344, ArmBranch(0x679344, updateTouchHudDestroyHookAddress));
-        report << "Touch stick overlays the map; original game button bindings are retained.\n"
-               << "Captured touch gestures stay owned through release and cancel when a menu opens.\n";
-    } else {
-        PatchContainerCancel(code, result.code, controls, textAddress, controlsAddress, updateContainerCancel);
-        std::copy(controls.begin(), controls.end(), result.code.begin() + controlsOffset);
-        Write32(result.code, anchors.at("inputHook"), ArmBranch(addressOf("inputHook"), controlsAddress));
-        report << "Container B cancel uses a fresh press; opening releases cannot close containers.\n";
-    }
+    InstallRuntimeControls(code, result);
+    report << "Options > Controls switches modes and edits bindings without replacing the IPS.\n"
+           << "Each mode retains its own bindings; existing defaults are installed on first use.\n"
+           << "Controls-page navigation stays stock for recovery; other menus use the saved menu bindings.\n"
+           << "Container cancel uses a fresh press; opening releases cannot close containers.\n"
+           << "Experimental controls UI: an in-world Options graphics-allocation failure remains unresolved.\n";
     std::copy(performance.begin(), performance.end(), result.code.begin() + performanceOffset);
     std::copy(lightLookup.begin(), lightLookup.end(), result.code.begin() + performanceOffset + updatePerformanceSize);
     const auto performanceTarget = [&](std::size_t offset) {
@@ -496,9 +438,7 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     Write32(result.exheader, 0x394, 0xff000101);
     Write32(result.icon, 0x2028, 0x1c1);
     const auto outputHash = Sha256(result.code);
-    const auto &standardHash = touchStick ? updateTouchStickCodeHash : (circlePadPro ? updateCirclePadProCodeHash : updateLCirclePadCodeHash);
-    const auto &overlayHash = touchStick ? updateTouchStickOverlayCodeHash : (circlePadPro ? updateCirclePadProOverlayCodeHash : updateLCirclePadOverlayCodeHash);
-    const auto &expectedHash = enableOverlay ? overlayHash : standardHash;
+    const auto &expectedHash = enableOverlay ? updateRuntimeControlsOverlayCodeHash : updateRuntimeControlsCodeHash;
     Require(!known || outputHash == expectedHash,
         "Update executable did not reproduce the expected control profile: " + outputHash);
     report << "Pickup animations tick and expire with low graphics enabled.\n";

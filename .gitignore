@@ -2,7 +2,10 @@
 /.gui-venv/
 /tools/
 /dist/
-/tests/
+/tests/*
+!/tests/ControlSettingsTests.cpp
+!/tests/PatchProfiles.cpp
+!/tests/BuildRuntimeFixture.cpp
 /experiments/
 /AGENTS.md
 /scripts/checkBlockRebuildDispatch.py

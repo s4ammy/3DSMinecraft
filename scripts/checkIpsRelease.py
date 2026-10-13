@@ -6,7 +6,7 @@ from prepareIpsRelease import FileHash, profiles
 
 
 def CheckIpsRelease():
-    parser = argparse.ArgumentParser(description="Check the eight prepared IPS release assets")
+    parser = argparse.ArgumentParser(description="Check the prepared IPS release assets")
     parser.add_argument("--directory", type=Path, required=True)
     arguments = parser.parse_args()
 
@@ -19,7 +19,7 @@ def CheckIpsRelease():
     expectedNames = {"code-" + name + ".ips" for name, _, _, _ in profiles}
     actualNames = {path.name for path in arguments.directory.iterdir() if path.is_file()}
     if actualNames != expectedNames | {"SHA256SUMS.txt"}:
-        raise RuntimeError("The IPS directory must contain exactly eight profiles and SHA256SUMS.txt")
+        raise RuntimeError("The IPS directory must contain exactly the current profiles and SHA256SUMS.txt")
 
     lines = (arguments.directory / "SHA256SUMS.txt").read_text(encoding="ascii").splitlines()
     checksums = {}
@@ -42,7 +42,7 @@ def CheckIpsRelease():
         if FileHash(path) != checksums[name]:
             raise RuntimeError("IPS checksum mismatch: " + name)
 
-    print("Checked eight IPS release assets")
+    print(f"Checked {len(profiles)} IPS release assets")
 
 
 if __name__ == "__main__":

@@ -19,18 +19,18 @@ Version 0.4.15 adds touch-stick gesture isolation across controller slots and co
 
 ## Reference SHA-256 hashes
 
+Version 0.4.16 consolidates the three update control modes into the native **Options > Controls** page, with per-mode button bindings and persistence in the normal options file. The existing bootstrap layout is unchanged. Base-only controls remain patch-time choices. Physical Old 3DS and Circle Pad Pro testing is still required for this revision.
+
+This is an experimental candidate: editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar, but one Options transition hit an unresolved native 2 MiB graphics-allocation failure. See [runtime-controls validation](PATCHES.md#in-game-controls-v0416) before testing on hardware.
+
 | File | SHA-256 |
 | --- | --- |
 | Original base CIA | `ebd865c5656be81ed2faf3122eec5d8c93b069e4ad211f3596b879f9f78abfe3` |
 | Original update CIA | `8526ef24719d074c1b3de4742e23c795c003ff51d10f7ea99839c6974587a75b` |
 | Base executable, L + Circle Pad | `a1c746e9efbf8bd8d26deb5abe33e1944c9cfd579f8233239536d0166e3b5740` |
 | Base executable, Circle Pad Pro | `6aaca1236211154d86f81b23c84fae9913effd48d316a3bb05e02a077c9a71e2` |
-| Update executable, L + Circle Pad, overlay off (default) | `77c33974d6957b7d866151d50a5f808beb5e28bbf55f80f459845fa1ca575501` |
-| Update executable, Circle Pad Pro, overlay off (default) | `3fa92c2bedbe5ce21db9e56f7b49bcac341d04be4b0e27aa44339d038da71daa` |
-| Update executable, L + Circle Pad, `--overlay` | `39c355ab69a2bd803ad90db24db13a8a9b3689baa8246d89716e6a68d4501d18` |
-| Update executable, Circle Pad Pro, `--overlay` | `2f703fe2b24ec7a89998d95b5eb096feeba110939554f0c5d4f2492ea3d426f7` |
-| Update executable, Touch stick, overlay off | `56253fce9ff61c4e1be81acf552f536fc17c487c984c9201912cb83e683daaae` |
-| Update executable, Touch stick, `--overlay` | `cd07826c69a129bf681e8897cb1b9b6be26bf21b28c1d148a0b13964cb8521ee` |
+| Update executable, in-game controls, overlay off (default) | `0775fb339059313f0ab1d3fb67ed662f8507862d52ae71b19c30fb57282f9fa7` |
+| Update executable, in-game controls, `--overlay` | `4070d5b75f76ffeb7920c611a987959fa3b2a9e34d4d9572ff8c8de55b19c196` |
 
 Version 0.3.1 changed extended-header text metadata so Luma places its LayeredFS payload after the patcher's hooks. Version 0.3.2 forced on the update's retained frame-timer display. Version 0.4.0 fixed its invalid `2147483647 FPS` current value and replaced CIA rebuilding with external `code.bin` and `exheader.bin` output. Version 0.4.1 added the SD-application capability required for resource-pack access. Version 0.4.2 switched to the reliable bootstrap plus `code.ips` route. Version 0.4.3 adjusted the retained frame-timer layout. Version 0.4.4 added an experimental Mods UI proof of concept. Version 0.4.5 removes that UI experiment and all debug-overlay patches, then adds guarded chunk decompression, biome-layer RNG, and startup presentation optimizations.
 
@@ -40,7 +40,7 @@ Version 0.4.6 fixes a v0.4.5 regression: the reusable scratch pointer overlapped
 
 Version 0.4.7 adds direct raw-light lookup, per-call inflate-context reuse and exact modulo-eight masking in biome-color generation. It keeps the same bootstrap requirements and LayeredFS shader files. The experimental biome-ready cache is excluded because a controlled neighbor-availability test produced stale colors. Context reuse reduced allocator traffic but raised peak live test allocations by up to 32 KiB in the sampled cases; low-memory hardware behavior remains unverified.
 
-Other regions and revisions are unverified. `--allow-similar` tries them with strict signature and layout checks. The update profile supports this with L + Circle Pad and CPP; touch stick and base-game CPP require their exact reference executables. Missing or ambiguous matches are rejected. DLC and already-patched inputs are unsupported.
+Other regions and revisions are unverified. `--allow-similar` remains experimental for the base L + Circle Pad profile. The unified update controls and base-game CPP require their exact reference executables. Missing or ambiguous matches are rejected. DLC and already-patched inputs are unsupported.
 
 Azahar checks covered base-game CPP controls and connection failures, plus update startup, saved-world loading, movement, camera, and dropping. The update's CPP gameplay has not been checked in Azahar. Emulation cannot confirm the accessory's physical IR link, battery, calibration, or sleep/wake behavior.
 

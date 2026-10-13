@@ -10,14 +10,8 @@ from pathlib import Path
 profiles = (
     ("base-l-circle-pad", "base", "patchedCodeHash", ()),
     ("base-circle-pad-pro", "base", "circlePadProCodeHash", ("--controls", "circle-pad-pro")),
-    ("update-l-circle-pad", "update", "updateLCirclePadCodeHash", ()),
-    ("update-circle-pad-pro", "update", "updateCirclePadProCodeHash", ("--controls", "circle-pad-pro")),
-    ("update-l-circle-pad-overlay", "update", "updateLCirclePadOverlayCodeHash", ("--overlay",)),
-    ("update-circle-pad-pro-overlay", "update", "updateCirclePadProOverlayCodeHash",
-     ("--controls", "circle-pad-pro", "--overlay")),
-    ("update-touch-stick", "update", "updateTouchStickCodeHash", ("--controls", "touch-stick")),
-    ("update-touch-stick-overlay", "update", "updateTouchStickOverlayCodeHash",
-     ("--controls", "touch-stick", "--overlay")),
+    ("update-controls", "update", "updateRuntimeControlsCodeHash", ()),
+    ("update-controls-overlay", "update", "updateRuntimeControlsOverlayCodeHash", ("--overlay",)),
 )
 
 
@@ -39,7 +33,7 @@ def FileHash(path):
 
 
 def PrepareIpsRelease():
-    parser = argparse.ArgumentParser(description="Generate the eight release IPS files from private reference CIAs")
+    parser = argparse.ArgumentParser(description="Generate the release IPS files from private reference CIAs")
     parser.add_argument("--patcher", type=Path, required=True)
     parser.add_argument("--base-cia", dest="baseCia", type=Path, required=True)
     parser.add_argument("--update-cia", dest="updateCia", type=Path, required=True)
