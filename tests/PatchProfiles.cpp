@@ -1,6 +1,6 @@
-#include "Patches.h"
-#include "UpdatePatchData.h"
-#include "RuntimeControlsData.h"
+#include "patching/Patches.h"
+#include "data/UpdatePatchData.h"
+#include "data/RuntimeControlsData.h"
 
 #include <iostream>
 #include <stdexcept>

@@ -54,13 +54,23 @@ def Main():
         objects = []
         sections = []
         reusedStrings = {}
-        sources = ["RuntimeControls.cpp", "ControlSettings.cpp", "CompactBindings.cpp", "CompactDictation.cpp", "TouchStick.cpp", "TouchStickInput.cpp", "RuntimeControls.s", "RuntimeVisuals.cpp", "TextureSettings.cpp", "RuntimeVisuals.s", "RuntimePrompts.cpp", "PromptBindings.cpp", "ChunkMesh.s"]
+        sources = [
+            "controls/RuntimeControls.cpp", "controls/ControlSettings.cpp", "controls/CompactBindings.cpp",
+            "controls/CompactDictation.cpp", "controls/TouchStick.cpp", "controls/TouchStickInput.cpp", "controls/RuntimeControls.s",
+            "rendering/RuntimeVisuals.cpp", "rendering/TextureSettings.cpp", "rendering/RuntimeVisuals.s",
+            "ui/RuntimePrompts.cpp", "ui/PromptBindings.cpp", "world/ChunkMesh.s",
+        ]
         if arguments.native_menu:
             flags += ["-DMC3DS_NATIVE_MENU", "-DMC3DS_OVERLAY_BACKGROUND", "-DMC3DS_ADVANCED_OVERLAY"]
-            sources += ["NativeMenus.cpp", "NativeMenus.s", "DebugOverlay.cpp", "OverlayMetrics.cpp", "AdvancedOverlay.cpp", "RuntimeWorld.cpp", "RuntimeWorld.s"]
-        for source in sources:
+            sources += [
+                "ui/NativeMenus.cpp", "ui/NativeUi.cpp", "ui/NativeMenus.s", "overlay/DebugOverlay.cpp",
+                "overlay/OverlayMetrics.cpp", "overlay/AdvancedOverlay.cpp", "world/RuntimeWorld.cpp", "world/RuntimeWorld.s",
+            ]
+        for relativeSource in sources:
+            #Keep object names stable: they break ties when packing sections into guarded regions.
+            source = Path(relativeSource).name
             objectPath = temporaryPath / (source + ".o")
-            sourcePath = projectPath / "patches" / source
+            sourcePath = projectPath / "patches" / relativeSource
             if arguments.native_menu and source in ("CompactBindings.cpp", "CompactDictation.cpp"):
                 def ReuseString(match):
                     value = match[0][1:-1].encode() + b"\0"
@@ -125,7 +135,7 @@ def Main():
             layout += [f"KEEP({item[0]}({item[1]}))" for item in contents]
             layout += ["}", f'ASSERT(SIZEOF(.controls{name}) <= 0x{capacity:x}, "{name} controls payload overflow")']
         linkerPath = temporaryPath / "controls.ld"
-        linkerPath.write_text((projectPath / "patches/RuntimeControls.ld").read_text().replace("@SECTIONS@", "\n".join(layout)))
+        linkerPath.write_text((projectPath / "patches/controls/RuntimeControls.ld").read_text().replace("@SECTIONS@", "\n".join(layout)))
         elfPath = temporaryPath / "controls.elf"
         subprocess.run(["clang++", *flags, "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,--gc-sections",
                         "-Wl,-e,RuntimeInputHook", f"-Wl,-T,{linkerPath}", *[path.name for path in objects], "-o", str(elfPath)], cwd=temporaryPath, check=True)
@@ -137,7 +147,7 @@ def Main():
         for _, address, _, entry in selectedReservations:
             if entry and entry.startswith(".text.") and symbols[entry[6:]] != address:
                 raise RuntimeError(f"Native entry point moved: {entry}")
-        lines = ["#pragma once", "", '#include "Bytes.h"', "", "namespace Mc3ds {"]
+        lines = ["#pragma once", "", '#include "core/Bytes.h"', "", "namespace Mc3ds {"]
         for name in entryPoints:
             lines.append(f"    inline constexpr std::uint32_t update{name}Address = 0x{symbols[name]:x};")
         lines += ["", "    struct TRuntimeControlsRegion {", "        std::size_t offset;", "        std::size_t capacity;",
@@ -150,8 +160,8 @@ def Main():
             (artifacts / "symbols.json").write_text(json.dumps(symbols, indent=4) + "\n")
             (artifacts / "controls.ld").write_text(linkerPath.read_text())
             (artifacts / "reused-strings.json").write_text(json.dumps(reusedStrings, indent=4) + "\n")
-            recordLayouts = subprocess.check_output(["clang++", *flags, "-std=c++17", "-Xclang", "-fdump-record-layouts",
-                "-fsyntax-only", str(projectPath / "patches/RuntimeControls.cpp")], text=True)
+            recordLayouts = subprocess.check_output(["clang++", *flags, "-I", str(projectPath / "patches"), "-std=c++17", "-Xclang", "-fdump-record-layouts",
+                "-fsyntax-only", str(projectPath / "patches/controls/RuntimeControls.cpp")], text=True)
             stateLayout = recordLayouts.split("struct RuntimeControls::TState\n", 1)[1].split("\n\n", 1)[0]
             offsets = {}
             for line in stateLayout.splitlines():
@@ -175,7 +185,7 @@ def Main():
                 (artifacts / binaryPath.name).write_bytes(payload)
             print(f"{name}: {len(payload)}/{capacity} bytes")
         lines += ["    };", "}", ""]
-        target = arguments.output_header or projectPath / "src/RuntimeControlsData.h"
+        target = arguments.output_header or projectPath / "src/data/RuntimeControlsData.h"
         content = "\n".join(lines)
         if arguments.check:
             if target.read_text() != content:

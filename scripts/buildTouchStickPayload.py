@@ -25,12 +25,12 @@ def Main():
         elfPath = temporaryPath / "touch.elf"
         command = [
             "clang++", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-mfpu=vfpv2", "-mfloat-abi=hard",
-            "-std=c++17", "-Oz", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables",
+            "-I", str(projectPath / "patches"), "-std=c++17", "-Oz", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables",
             "-fno-asynchronous-unwind-tables", "-fno-math-errno", "-ffunction-sections", "-fdata-sections",
             "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,-e,TouchInputHook",
-            f"-Wl,-T,{projectPath / 'patches/TouchStickUpdate.ld'}",
-            str(projectPath / "patches/TouchStick.cpp"), str(projectPath / "patches/TouchStickInput.cpp"),
-            str(projectPath / "patches/TouchStickUpdate.s"), "-o", str(elfPath),
+            f"-Wl,-T,{projectPath / 'patches/controls/TouchStickUpdate.ld'}",
+            str(projectPath / "patches/controls/TouchStick.cpp"), str(projectPath / "patches/controls/TouchStickInput.cpp"),
+            str(projectPath / "patches/controls/TouchStickUpdate.s"), "-o", str(elfPath),
         ]
         subprocess.run(command, check=True)
         symbols = {}
@@ -39,7 +39,7 @@ def Main():
             if len(parts) == 3:
                 symbols[parts[2]] = int(parts[0], 16)
 
-        lines = ["#pragma once", "", '#include "Bytes.h"', "", "namespace Mc3ds {"]
+        lines = ["#pragma once", "", '#include "core/Bytes.h"', "", "namespace Mc3ds {"]
         for name in ["TouchInputHook", "TouchHudDestroyHook", "DrawTouchStick"]:
             lines.append(f"    inline constexpr std::uint32_t update{name}Address = 0x{symbols[name]:x};")
 
@@ -90,7 +90,7 @@ def Main():
         lines.append(f'        {{"{name}", 0x{offset:x}, 0x{size:x}, "{digest}"}},')
     lines += ["    };", "}", ""]
     content = "\n".join(lines)
-    target = projectPath / "src/TouchStickData.h"
+    target = projectPath / "src/data/TouchStickData.h"
     if arguments.check:
         if target.read_text() != content:
             raise RuntimeError("TouchStickData.h does not match the rebuilt payload")

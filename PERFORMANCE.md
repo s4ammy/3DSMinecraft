@@ -1,5 +1,44 @@
 # Performance validation
 
+## 2026-10-14 green enabled switches withdrawn
+
+The green-switch experiment is withdrawn. User testing showed green leaking into the sliders and scrollbar. The widget tint writes and boolean-renderer instruction override have been removed, restoring Minecraft's original toggle drawing. Settings, bindings, save format and the other compact-UI changes are unchanged. Use `release/experiments/compact-ui-20261014/code.ips`, not the retained green-switch experiment.
+
+The experiment's isolated switch tests and brief emulator checks missed the surrounding-control regression. The retained 56 ARM switch cases now require the stock color-load instruction, unchanged white widget tint in both states, native thumb positions and reset of the shared draw color. Historical green-switch screenshots and reports under `analysis-codex-2/green-switches-20261014/` are not evidence of a regression-free full menu. The earlier compact-UI candidate and tracked release remain unchanged.
+
+After reverting, the rebuilt executable and IPS match the preserved compact-UI candidate byte-for-byte. The full ARM settings suite, including all 56 stock switch cases, and five host CTests pass. The private desktop preview uses that restored candidate with audio disabled.
+
+## 2026-10-14 compact UI and rendering candidate
+
+`release/experiments/compact-ui-20261014/code.ips` is a separate EU update test candidate. The tracked v0.4.18 release IPS and the PC patcher's embedded payload bytes are unchanged. All seven pages, four control modes, shared/chord/unbound bindings, defaults and the existing MC3DS4 encoding are retained. `controls/ControlSettings.cpp` logic and its persisted layout are unchanged.
+
+The smaller UI layer is an original implementation using our native ABI adapter, informed by NUMC3DS's bounded-control and modal-input approach. No NUMC3DS source, module loader, storage format or full forms framework is imported. `NativeUi` handles native widget creation, value conversion and unchanged-label/selection suppression. Compact read-only row descriptors replace duplicated page-specific widget branches. Menu state shrinks from 488 to 404 requested bytes; runtime state and BSS do not grow. Native screen and pane ownership still release old rows before replacement, and page rebuilds still occur in polling rather than widget callbacks.
+
+An expanded dropdown consumes controller navigation without moving the parent focus or scroll position, including mixed touch/controller use. Binding capture also consumes parent navigation. Stock Options keeps its original navigation route. Native ARM checks cover 234 setting/value cases, 147 adapter construction/label cases, 73 modal-navigation cases, scroll memory and the existing dropdown broadcast tests.
+
+The optional allocation-free rendering payload replaces three original function slots, with no trampoline allocation or added cache:
+
+- The format-27 vertex attribute writer emits the same packed color and four rounded 16-bit UV channels. Normal bounded values use direct VFP conversion with a ceiling correction. Negative, non-finite and large values retain native ceil/conversion behavior. Across 1,000 normal sampled vertices, guest instructions fall from 151,917 to 94,000. Another 1,019 edge/random-bit cases match output bytes, state and preserved registers.
+- Sprite U/V interpolation bypasses redundant calls and VFP saves on a valid native cache hit. It retains the original interpolation arithmetic and native sprite resolution for empty/stale caches, including the absent-atlas revision sentinel. Across 1,680 cases, cache-hit instructions fall from 20,160 to 12,880 and tested refresh paths from 71,960 to 59,080.
+
+These are routine-level guest instruction counts, not hardware FPS measurements. GPU allocation policy, resource lifetimes and fragmentation are unchanged. Frustum simplification, particle collision shortcuts, retained lighting queues and additional chunk-storage caches are not included. Existing chunk, mesh, light, texture, overlay and prompt checks also pass; hardware timing and long-session stability remain for testing.
+
+Private muted Azahar exercised mixed touch/controller page selection, dropdown cancel, a sensitivity-slider change, and the touch-stick preview. Parent selection remained fixed while the touched dropdown handled direction input. The copied legacy MC3DS3 profile retained every existing binding and setting byte when saved by the unchanged MC3DS4 migration code, adding only the four established chunk defaults. The test also loaded an existing world with the combined rendering payload, reopened Mod Settings from pause, and returned to the title through Save & Quit. The private emulator was closed after testing. Evidence is kept separately under `analysis-codex-2/compact-ui-20261014/`; this is not a timing benchmark.
+
+The source-folder cleanup is behavior-neutral: the candidate IPS is byte-identical before and after moving files, and the rebuilt host patcher produces the same baseline executable and IPS. Fresh Linux builds pass all five available CTests, including private update-profile checks; a Windows MinGW cross-build also succeeds. Ten release-validation tests and the pinned release checksum pass. The ARM settings and rendering suites pass again against the reorganized build.
+
+Known pre-existing rebuild limitation: `--check` for the legacy performance, touch-stick, standalone-overlay and non-native-controls payload headers does not match the checked-in data with the current source/toolchain. Each fails on the pre-cleanup commit too, and each generator produces identical bytes before and after the folder moves. Their embedded byte arrays were not regenerated. This is separate from the reproducible native-menu candidate and ordinary host builds. The comparison is recorded in `legacy-builder-checks.json` beside the candidate's validation reports.
+
+Reproduce with Clang/LLD, LLVM tools, Python and Unicorn, using private original EU game data. `buildRuntimeFixture` supplies the preserved baseline and sibling `code.ips`; substitute local paths below. Keep all generated artifacts separate from the pinned release.
+
+```sh
+python3 scripts/buildRuntimeControls.py --reference-code STOCK_CODE --native-menu --output-header build-ui-layer/RuntimeControlsData.h --artifacts-dir build-ui-layer/payload
+python3 scripts/buildRenderFastPaths.py --reference-code STOCK_CODE --output build-ui-layer/render
+python3 scripts/buildNativeMenuPrototype.py --stock-code STOCK_CODE --baseline-code BASELINE_CODE --payload build-ui-layer/payload --render-fast-paths build-ui-layer/render --output build-ui-layer/fixture
+python3 scripts/checkRenderFastPaths.py --reference-code STOCK_CODE --patched-code build-ui-layer/fixture/code.bin --output build-ui-layer/render-checks.json
+python3 scripts/checkRuntimeSettings.py --reference-code STOCK_CODE --patched-code build-ui-layer/fixture/code.bin --symbols build-ui-layer/payload/symbols.json --world-baseline BASELINE_CODE --overlay-symbols build-ui-layer/payload/symbols.json --overlay-background --texture-romfs STOCK_ROMFS --output build-ui-layer/settings-checks.json
+```
+
 ## Restart-frozen chunk settings experiment
 
 The separate `release/experiments/chunk-settings-20261014/` candidate adds render distance, nearby chunk radius, map radius and deferred mesh-builder count to the native Display page. Defaults preserve radius 1 rendering, the exact existing 25-entry snake-order neighborhood, a 32-block resident expansion, a 24-block map radius and four deferred builders. Existing release files and production payload headers are preserved.

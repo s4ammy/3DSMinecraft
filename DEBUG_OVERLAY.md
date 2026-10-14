@@ -65,7 +65,7 @@ Private muted Azahar tests verify actual text rendering separately. Early protot
 
 ## Rebuild and verify payload
 
-The generated `src/OverlayData.h` is built with Clang/LLD and LLVM objcopy/nm:
+The generated `src/data/OverlayData.h` is built with Clang/LLD and LLVM objcopy/nm:
 
 ```sh
 python3 scripts/buildOverlayPayload.py --reference-code /path/to/stock/update/exefs/code.bin --artifacts-dir /path/to/overlay-artifacts

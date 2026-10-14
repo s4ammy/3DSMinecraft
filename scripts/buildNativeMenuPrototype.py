@@ -43,13 +43,14 @@ def ApplyIps(original, patch):
 
 
 def Main():
-    parser = argparse.ArgumentParser(description="Build the native settings/chunk-distance experiment over the preserved v0.4.18 patch")
+    parser = argparse.ArgumentParser(description="Build the compact native settings experiment over the preserved v0.4.18 patch")
     parser.add_argument("--stock-code", type=Path, required=True)
     parser.add_argument("--baseline-code", type=Path, required=True)
     parser.add_argument("--baseline-ips", type=Path, help="Defaults to code.ips beside the baseline executable")
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--overlay", type=Path)
+    parser.add_argument("--render-fast-paths", type=Path, help="Optional separately verified in-place rendering payload")
     args = parser.parse_args()
     stock = args.stock_code.read_bytes()
     baseline = args.baseline_code.read_bytes()
@@ -113,6 +114,7 @@ def Main():
         (0x99d898 + 0x114, 0x1a182c, "NativeInitializePauseMenu"),
         (0x9a6fa4 + 0x114, 0x236b50, "NativeInitializeOptions"),
         (0x9a6fa4 + 424, 0x234ac4, "NativeOptionsBack"),
+        (0x9a6fa4 + 400, 0x3dd1a8, "NativeOptionsNavigation"),
         (0x9a6fa4 + 272, 0x236bec, "NativeRenderOptions")]:
         if struct.unpack_from("<I", baseline, address - 0x100000)[0] != expected:
             raise ValueError(f"Native menu vtable changed at {address:#x}")
@@ -129,6 +131,19 @@ def Main():
             raise ValueError("Overlay overlaps the preserved heap helpers")
         Write(0x35cadc, overlay.ljust(capacity, b"\0"))
         Write(0x4f903c, struct.pack("<I", overlaySymbols["OnDisplayVblankWithOverlayStats"]))
+    renderRegions = []
+    if args.render_fast_paths is not None:
+        from buildRenderFastPaths import regions
+
+        for name, address, capacity in regions:
+            offset = address - 0x100000
+            if candidate[offset:offset + capacity] != stock[offset:offset + capacity]:
+                raise ValueError(f"Rendering function {name} is already modified")
+            payload = (args.render_fast_paths / f"{name}.bin").read_bytes()
+            if not 0 < len(payload) <= capacity:
+                raise ValueError(f"Rendering payload {name} exceeds its original function")
+            Write(address, payload.ljust(capacity, b"\0"))
+            renderRegions.append(name)
     patch.extend(b"EOF")
     for address, value in json.loads((args.payload / "reused-strings.json").read_text()).items():
         offset = int(address, 16) - 0x100000
@@ -142,10 +157,11 @@ def Main():
     (args.output / "code.ips").write_bytes(patch)
     report = {"baselineSha256": baselineHash, "codeSha256": hashlib.sha256(candidate).hexdigest(),
         "ipsSha256": hashlib.sha256(patch).hexdigest(), "experimental": True,
-        "nativeMenuStateBytes": 488, "newBssBytes": 0, "overlayBackground": "DrawDebugOverlay" in symbols or args.overlay is not None,
+        "nativeMenuStateBytes": 404, "newBssBytes": 0, "overlayBackground": "DrawDebugOverlay" in symbols or args.overlay is not None,
+        "renderFastPaths": renderRegions,
         "reusedChunkTableTailBytes": 32, "worldSettingsRestartRequired": True,
         "worldDefaults": {"renderChunks": 1, "nearbyRadius": 2, "nearbyOffsets": 25, "mapRadiusBlocks": 24, "deferredBuilders": 4},
-        "scope": "Native settings and chunk-distance experiment. Existing release files and production payload headers are preserved. Runtime validation is recorded separately."}
+        "scope": "Compact native settings and optional in-place rendering experiment. Existing settings, bindings, encoding, release files and production payload headers are preserved. Runtime validation is recorded separately."}
     (args.output / "build.json").write_text(json.dumps(report, indent=4) + "\n")
     print(json.dumps(report, indent=4))
 

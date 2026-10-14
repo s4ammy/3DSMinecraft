@@ -28,7 +28,8 @@ def Main():
         temporaryPath = Path(temporaryDirectory)
         elfPath = temporaryPath / "overlay.elf"
         binaryPath = temporaryPath / "overlay.bin"
-        command = ["clang++", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-mfpu=vfpv2", "-mfloat-abi=hard", "-std=c++17", "-Os", "-fno-inline-functions", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-ffunction-sections", "-fdata-sections", "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,-e,DrawDebugOverlay", f"-Wl,-T,{projectPath / 'patches/DebugOverlay.ld'}", str(projectPath / "patches/DebugOverlay.cpp"), str(projectPath / "patches/OverlayMetrics.cpp"), "-o", str(elfPath)]
+        command = ["clang++", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-mfpu=vfpv2", "-mfloat-abi=hard", "-std=c++17", "-Os", "-fno-inline-functions", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-ffunction-sections", "-fdata-sections", "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,-e,DrawDebugOverlay", f"-Wl,-T,{projectPath / 'patches/overlay/DebugOverlay.ld'}", str(projectPath / "patches/overlay/DebugOverlay.cpp"), str(projectPath / "patches/overlay/OverlayMetrics.cpp"), "-o", str(elfPath)]
+        command += ["-I", str(projectPath / "patches")]
         if arguments.background:
             command.append("-DMC3DS_OVERLAY_BACKGROUND")
         subprocess.run(command, check=True)
@@ -46,7 +47,7 @@ def Main():
             (arguments.artifactsPath / "overlay.elf").write_bytes(elfPath.read_bytes())
             (arguments.artifactsPath / "overlay.bin").write_bytes(payload)
             (arguments.artifactsPath / "symbols.json").write_text(json.dumps(symbols, indent=4) + "\n")
-    lines = ["#pragma once", "", '#include "Bytes.h"', "", "namespace Mc3ds {"]
+    lines = ["#pragma once", "", '#include "core/Bytes.h"', "", "namespace Mc3ds {"]
     lines += [
         "    inline constexpr std::size_t updateOverlayOffset = 0x25cadc;",
         "    inline constexpr std::size_t updateOverlayCapacity = 0xbd8;",
@@ -87,7 +88,7 @@ def Main():
         lines.append(f'        {{"{name}", 0x{offset:x}, 0x{size:x}, "{digest}"}},')
     lines += ["    };", "}", ""]
     content = "\n".join(lines)
-    target = arguments.outputHeader or projectPath / "src/OverlayData.h"
+    target = arguments.outputHeader or projectPath / "src/data/OverlayData.h"
     if arguments.check:
         if target.read_text() != content:
             raise RuntimeError("OverlayData.h does not match the rebuilt payload")

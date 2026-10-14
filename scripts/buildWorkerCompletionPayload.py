@@ -15,11 +15,11 @@ def Main():
     if hashlib.sha256(reference).hexdigest() != referenceHash:
         raise RuntimeError("The input is not the supported stock update executable")
     with tempfile.TemporaryDirectory(prefix="mc3ds-worker-build-") as temporaryDirectory:
-        payload, _ = Compile("LateWorkerCompletion.s", 0x35D634, "CompleteStreamingJobWhenLate", Path(temporaryDirectory),
+        payload, _ = Compile("performance/LateWorkerCompletion.s", 0x35D634, "CompleteStreamingJobWhenLate", Path(temporaryDirectory),
             linkedSymbols={"CompleteOneWorkerJob": 0x10A38C, "WorkerBudgetExhausted": 0x16FC0C})
     if len(payload) != 36:
         raise RuntimeError("Completion hook no longer fits the reserved gap")
-    lines = ["#pragma once", "", '#include "Bytes.h"', "", "namespace Mc3ds {",
+    lines = ["#pragma once", "", '#include "core/Bytes.h"', "", "namespace Mc3ds {",
              "    inline constexpr std::size_t updateLateCompletionOffset = 0x25d634;",
              "    inline constexpr std::size_t updateLateCompletionHookOffset = 0x6fb48;",
              "    inline constexpr std::size_t updateLateCompletionSize = 0x24;",
@@ -35,7 +35,7 @@ def Main():
         lines.append(f'        {{"{name}", 0x{offset:x}, 0x{size:x}, "{digest}"}},')
     lines += ["    };", "}", ""]
     content = "\n".join(lines)
-    target = projectPath / "src/WorkerCompletionData.h"
+    target = projectPath / "src/data/WorkerCompletionData.h"
     if arguments.check:
         if target.read_text() != content:
             raise RuntimeError("WorkerCompletionData.h does not match the rebuilt payload")

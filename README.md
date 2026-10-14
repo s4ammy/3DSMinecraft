@@ -24,4 +24,26 @@ Version 0.4.18 reduces chunk-builder scratch reservations by about 2.8 MiB with 
 
 For more detail, see [compatibility and tested hashes](COMPATIBILITY.md), [controls](INPUTS_EXPLAINED.md), [included patches](PATCHES.md), [performance results](PERFORMANCE.md), and [overlay details](DEBUG_OVERLAY.md). Source builds and release packaging are covered in the [guide](GUIDE.md#build-from-source).
 
+## Source layout
+
+The host patcher and the ARM code injected into the game are kept separate:
+
+```text
+src/
+    app/           CLI entry point and CIA/IPS pipeline
+    core/          Binary I/O, platform helpers and signature matching
+    patching/      Patch selection, guards and installation
+    data/          Embedded payload bytes, signatures and bootstrap data
+patches/
+    controls/      Input modes, bindings, saved settings and touch stick
+    ui/            Native settings controls, prompts and menu hooks
+    overlay/       In-game diagnostics and metrics
+    rendering/     Visual settings, textures and rendering fast paths
+    world/         Chunk, block, lighting and item-pickup patches
+    performance/   Shared performance, allocation and worker hooks
+    experimental/  Research candidates not enabled by the release
+```
+
+Payload builders and ARM regression checks live in `scripts/`; host-side tests live in `tests/`. Regenerate embedded payload headers with their builders rather than editing the byte arrays in `src/data/`. Build instructions and script entry points are unchanged.
+
 The patcher is [MIT licensed](LICENSE). See [dependencies and notices](THIRD_PARTY.md). This project is not affiliated with Mojang, Microsoft, or Nintendo.

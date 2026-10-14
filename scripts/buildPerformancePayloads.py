@@ -11,8 +11,9 @@ referenceHash = "902ccd5a06d59797c52976b2905dc56a5ca0a868021432fcc7eb127ba3320d6
 
 
 def Compile(sourceName, address, entry, temporaryPath, cpp=False, linkedSymbols=None):
-    outputPath = temporaryPath / (sourceName + ".elf")
-    command = ["clang", "--target=arm-none-eabi", "-march=armv6k", "-marm"]
+    objectName = Path(sourceName).name
+    outputPath = temporaryPath / (objectName + ".elf")
+    command = ["clang", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-I", str(projectPath / "patches")]
     if cpp:
         command += ["-mfloat-abi=soft", "-O2", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables"]
     command += ["-Wl,--no-undefined"]
@@ -20,7 +21,7 @@ def Compile(sourceName, address, entry, temporaryPath, cpp=False, linkedSymbols=
         command += [f"-Wl,--defsym,{name}={value:#x}"]
     command += ["-nostdlib", "-fuse-ld=lld", f"-Wl,-Ttext={address:#x}", f"-Wl,-e,{entry}", str(projectPath / "patches" / sourceName), "-o", str(outputPath)]
     subprocess.run(command, check=True)
-    binaryPath = temporaryPath / (sourceName + ".bin")
+    binaryPath = temporaryPath / (objectName + ".bin")
     subprocess.run(["llvm-objcopy", "-O", "binary", "--only-section=.text", str(outputPath), str(binaryPath)], check=True)
     symbols = {}
     for line in subprocess.check_output(["llvm-nm", "--defined-only", "--extern-only", str(outputPath)], text=True).splitlines():
@@ -41,12 +42,12 @@ def Main():
         raise RuntimeError("The input is not the supported stock update executable")
     with tempfile.TemporaryDirectory(prefix="mc3ds-performance-build-") as temporaryDirectory:
         temporaryPath = Path(temporaryDirectory)
-        payload, symbols = Compile("PerformanceOptimizations.s", 0x918BC0, "PerformancePayloadStart", temporaryPath)
-        block, _ = Compile("BlockLookup.cpp", 0x174648, "_ZN11Performance10GetBlockIdEPhPNS_12TBlockSourceEPKNS_9TBlockPosE", temporaryPath, cpp=True)
-        light, _ = Compile("LightLookup.cpp", 0x918BC0 + len(payload), "GetChunkLight", temporaryPath, cpp=True)
-        heapSearch, _ = Compile("HeapFreeSearch.s", 0x35D5F0, "FindFreeBlockNeighbors", temporaryPath,
+        payload, symbols = Compile("performance/PerformanceOptimizations.s", 0x918BC0, "PerformancePayloadStart", temporaryPath)
+        block, _ = Compile("world/BlockLookup.cpp", 0x174648, "_ZN11Performance10GetBlockIdEPhPNS_12TBlockSourceEPKNS_9TBlockPosE", temporaryPath, cpp=True)
+        light, _ = Compile("world/LightLookup.cpp", 0x918BC0 + len(payload), "GetChunkLight", temporaryPath, cpp=True)
+        heapSearch, _ = Compile("performance/HeapFreeSearch.s", 0x35D5F0, "FindFreeBlockNeighbors", temporaryPath,
             linkedSymbols={"OriginalSearch": 0x123BDC, "CoalesceNext": 0x123C04, "CoalescePrevious": 0x123C38})
-        alignedAllocation, _ = Compile("AllocateAligned4.s", 0x35D658, "AllocateAligned4", temporaryPath,
+        alignedAllocation, _ = Compile("performance/AllocateAligned4.s", 0x35D658, "AllocateAligned4", temporaryPath,
             linkedSymbols={"AllocationFailed": 0x112670, "OriginalForwardSearch": 0x112578, "CommitSelectedBlock": 0x1125C8})
     if len(payload) + len(light) > 0x310 or len(block) != 0xE8 or len(payload) % 4 or len(heapSearch) != 68 or len(alignedAllocation) != 72:
         raise RuntimeError("Payload layout changed. Review hook offsets and expected output hashes before regenerating.")
@@ -58,7 +59,7 @@ def Main():
         (args.artifactsPath / "heap-search.bin").write_bytes(heapSearch)
         (args.artifactsPath / "aligned-allocation.bin").write_bytes(alignedAllocation)
         (args.artifactsPath / "symbols.json").write_text(json.dumps(symbols, indent=4) + "\n")
-    lines = ["#pragma once", "", '#include "Bytes.h"', "", "namespace Mc3ds {"]
+    lines = ["#pragma once", "", '#include "core/Bytes.h"', "", "namespace Mc3ds {"]
     lines += [f"    inline constexpr std::size_t updatePerformanceSize = 0x{len(payload):x};", f"    inline constexpr std::size_t updateLightLookupSize = 0x{len(light):x};", f"    inline constexpr std::size_t updatePayloadSize = 0x{len(payload) + len(light):x};", ""]
     lines += ["    inline constexpr std::size_t updateHeapSearchOffset = 0x25d5f0;", "    inline constexpr std::size_t updateHeapSearchHookOffset = 0x23bd8;", f"    inline constexpr std::size_t updateHeapSearchSize = 0x{len(heapSearch):x};", ""]
     lines += ["    inline constexpr std::size_t updateAlignedAllocationOffset = 0x25d658;", "    inline constexpr std::size_t updateAlignedAllocationHookOffset = 0x12574;", f"    inline constexpr std::size_t updateAlignedAllocationSize = 0x{len(alignedAllocation):x};", ""]
@@ -83,7 +84,7 @@ def Main():
         lines.append(f'        {{"{name}", 0x{offset:x}, 0x{size:x}, "{digest}"}},')
     lines += ["    };", "}", ""]
     content = "\n".join(lines)
-    target = projectPath / "src/PerformanceData.h"
+    target = projectPath / "src/data/PerformanceData.h"
     if args.check:
         if target.read_text() != content:
             raise RuntimeError("PerformanceData.h does not match the rebuilt payloads")

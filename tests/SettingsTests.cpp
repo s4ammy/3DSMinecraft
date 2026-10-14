@@ -1,7 +1,7 @@
-#include "ControlSettings.h"
-#include "RuntimePrompts.h"
-#include "RuntimeVisuals.h"
-#include "TouchStick.h"
+#include "controls/ControlSettings.h"
+#include "ui/RuntimePrompts.h"
+#include "rendering/RuntimeVisuals.h"
+#include "controls/TouchStick.h"
 
 #include <array>
 #include <cstring>

@@ -6,7 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_library(patcherCore src/Bytes.cpp src/Platform.cpp src/Signature.cpp src/Patches.cpp src/UpdatePatches.cpp src/ContainerCancel.cpp src/RuntimeControlsPatch.cpp)
+add_library(patcherCore
+    src/core/Bytes.cpp
+    src/core/Platform.cpp
+    src/core/Signature.cpp
+    src/patching/Patches.cpp
+    src/patching/UpdatePatches.cpp
+    src/patching/ContainerCancel.cpp
+    src/patching/RuntimeControlsPatch.cpp)
 target_include_directories(patcherCore PUBLIC src)
 find_package(Threads REQUIRED)
 target_link_libraries(patcherCore PUBLIC Threads::Threads)
@@ -23,7 +30,7 @@ else()
     target_compile_options(patcherCore PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
 endif()
 
-add_executable(mc3ds-patcher src/main.cpp src/Pipeline.cpp)
+add_executable(mc3ds-patcher src/app/main.cpp src/app/Pipeline.cpp)
 target_link_libraries(mc3ds-patcher PRIVATE patcherCore)
 target_compile_definitions(mc3ds-patcher PRIVATE MC3DS_VERSION="${PROJECT_VERSION}")
 if(MINGW)
@@ -36,10 +43,15 @@ install(DIRECTORY assets/fonts DESTINATION assets)
 
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(controlSettingsTests tests/ControlSettingsTests.cpp patches/ControlSettings.cpp)
+    add_executable(controlSettingsTests tests/ControlSettingsTests.cpp patches/controls/ControlSettings.cpp)
     target_include_directories(controlSettingsTests PRIVATE patches)
     add_test(NAME runtimeControlSettings COMMAND controlSettingsTests)
-    add_executable(settingsTests tests/SettingsTests.cpp patches/ControlSettings.cpp patches/TextureSettings.cpp patches/PromptBindings.cpp patches/TouchStickInput.cpp)
+    add_executable(settingsTests
+        tests/SettingsTests.cpp
+        patches/controls/ControlSettings.cpp
+        patches/rendering/TextureSettings.cpp
+        patches/ui/PromptBindings.cpp
+        patches/controls/TouchStickInput.cpp)
     target_include_directories(settingsTests PRIVATE patches)
     add_test(NAME extendedSettings COMMAND settingsTests)
     add_executable(buildRuntimeFixture tests/BuildRuntimeFixture.cpp)
@@ -62,7 +74,7 @@ if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/PatchProfiles.cpp
 endif()
 
 if(BUILD_TESTING AND NOT MSVC AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/TouchStickTests.cpp")
-    add_executable(touchStickTests tests/TouchStickTests.cpp patches/TouchStickInput.cpp)
+    add_executable(touchStickTests tests/TouchStickTests.cpp patches/controls/TouchStickInput.cpp)
     target_include_directories(touchStickTests PRIVATE patches)
     add_test(NAME touchStickGestures COMMAND touchStickTests)
 endif()

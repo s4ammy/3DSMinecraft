@@ -1,4 +1,4 @@
-#include "ControlSettings.h"
+#include "controls/ControlSettings.h"
 
 #include <array>
 #include <cstring>
