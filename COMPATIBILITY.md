@@ -21,7 +21,9 @@ Version 0.4.15 adds touch-stick gesture isolation across controller slots and co
 
 Version 0.4.17 includes four modes, including ABXY camera, in **Options > Controls**, with per-mode bindings and camera/touch tuning plus shared visual settings. v0.4.16 bindings migrate automatically. Bootstrap layout and base-only outputs are unchanged. Physical Old 3DS and Circle Pad Pro testing is still required.
 
-Version 0.4.18 retains those settings and caps deferred chunk builders at four to reduce scratch-buffer reservations. The native immediate builder and empty-pool retry remain. No bootstrap reinstall, new save format or allocator fallback is introduced. Physical Old 3DS loading throughput and long-session allocation stability remain unverified.
+The v0.4.18 patcher-generated baseline retains those settings and caps deferred chunk builders at four to reduce scratch-buffer reservations. The native immediate builder and empty-pool retry remain. That baseline needs no bootstrap reinstall, new settings format or allocator fallback. Physical Old 3DS loading throughput and long-session allocation stability remain unverified.
+
+The single downloadable v0.4.18 `code.ips` is the newer native-menu/chunk-settings candidate. It adds dedicated **Mod Settings** and configurable chunk distances/builders on top of the baseline, and saves settings as `MC3DS4`. Back up options before testing; older patches cannot read that format. It is update-only, retains the same bootstrap requirements, and does not establish a general graphics-allocation fix. The PC patcher's embedded update payload has not been replaced by this release-packaging change.
 
 This is an experimental candidate: editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar, but one Options transition hit an unresolved native 2 MiB graphics-allocation failure. See [runtime-controls validation](PATCHES.md#in-game-controls-v0416) before testing on hardware.
 
@@ -31,7 +33,9 @@ This is an experimental candidate: editing, persistence, gameplay remapping and 
 | Original update CIA | `8526ef24719d074c1b3de4742e23c795c003ff51d10f7ea99839c6974587a75b` |
 | Base executable, L + Circle Pad | `a1c746e9efbf8bd8d26deb5abe33e1944c9cfd579f8233239536d0166e3b5740` |
 | Base executable, Circle Pad Pro | `6aaca1236211154d86f81b23c84fae9913effd48d316a3bb05e02a077c9a71e2` |
-| Update executable, all in-game settings (also with legacy `--overlay`) | `b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0` |
+| Patcher-generated update executable (also with legacy `--overlay`) | `b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0` |
+| Release update executable, native menu and chunk settings | `8216d813b0f3af312a0724feb2503155e62e2be74ec393c58fb0bf34bb91a061` |
+| Release `code.ips` | `46bf9d96f15b281a046cd4d51a2f88053b67c27f9ad6bed7454a9d94546fcb09` |
 
 Version 0.3.1 changed extended-header text metadata so Luma places its LayeredFS payload after the patcher's hooks. Version 0.3.2 forced on the update's retained frame-timer display. Version 0.4.0 fixed its invalid `2147483647 FPS` current value and replaced CIA rebuilding with external `code.bin` and `exheader.bin` output. Version 0.4.1 added the SD-application capability required for resource-pack access. Version 0.4.2 switched to the reliable bootstrap plus `code.ips` route. Version 0.4.3 adjusted the retained frame-timer layout. Version 0.4.4 added an experimental Mods UI proof of concept. Version 0.4.5 removes that UI experiment and all debug-overlay patches, then adds guarded chunk decompression, biome-layer RNG, and startup presentation optimizations.
 

@@ -1,49 +1,53 @@
 import argparse
+import hashlib
 import re
 from pathlib import Path
 
-from prepareIpsRelease import FileHash, profiles
+
+projectPath = Path(__file__).resolve().parents[1]
+releaseVersion = "0.4.18"
+releaseIpsHash = "46bf9d96f15b281a046cd4d51a2f88053b67c27f9ad6bed7454a9d94546fcb09"
+releaseCodeHash = "8216d813b0f3af312a0724feb2503155e62e2be74ec393c58fb0bf34bb91a061"
 
 
-def CheckIpsRelease():
-    parser = argparse.ArgumentParser(description="Check the prepared IPS release assets")
-    parser.add_argument("--directory", type=Path, required=True)
-    arguments = parser.parse_args()
-
-    projectPath = Path(__file__).resolve().parents[1]
+def ReadReleaseVersion():
     versionMatch = re.search(r"project\(MinecraftOld3dsPatcher VERSION ([0-9.]+)",
                              (projectPath / "CMakeLists.txt").read_text())
-    if versionMatch is None or arguments.directory.name != "v" + versionMatch.group(1):
+    if versionMatch is None or versionMatch.group(1) != releaseVersion:
+        raise RuntimeError("Update the validated release IPS hashes for the current project version")
+
+    return releaseVersion
+
+
+def ValidateReleaseIps(data):
+    if not data.startswith(b"PATCH") or not data.endswith(b"EOF"):
+        raise RuntimeError("Invalid IPS file: code.ips")
+
+    if hashlib.sha256(data).hexdigest() != releaseIpsHash:
+        raise RuntimeError("code.ips does not match the validated native-menu/chunk-settings release")
+
+
+def CheckReleaseDirectory(directory):
+    if directory.name != "v" + ReadReleaseVersion():
         raise RuntimeError("The IPS directory does not match the project version")
 
-    expectedNames = {"code-" + name + ".ips" for name, _, _, _ in profiles}
-    actualNames = {path.name for path in arguments.directory.iterdir() if path.is_file()}
-    if actualNames != expectedNames | {"SHA256SUMS.txt"}:
-        raise RuntimeError("The IPS directory must contain exactly the current profiles and SHA256SUMS.txt")
+    ValidateReleaseIps((directory / "code.ips").read_bytes())
+    return releaseIpsHash + "  code.ips\n"
 
-    lines = (arguments.directory / "SHA256SUMS.txt").read_text(encoding="ascii").splitlines()
-    checksums = {}
-    for line in lines:
-        match = re.fullmatch(r"([0-9a-f]{64})  (code-[a-z-]+\.ips)", line)
-        if match is None or match.group(2) in checksums:
-            raise RuntimeError("Invalid IPS checksum manifest")
 
-        checksums[match.group(2)] = match.group(1)
+def Main():
+    parser = argparse.ArgumentParser(description="Check the single validated update code.ips release asset")
+    parser.add_argument("--directory", type=Path)
+    parser.add_argument("--checksum-output", dest="checksumOutput", type=Path)
+    arguments = parser.parse_args()
+    directory = arguments.directory or projectPath / "release/ips" / ("v" + ReadReleaseVersion())
+    checksum = CheckReleaseDirectory(directory)
+    if arguments.checksumOutput is not None:
+        with arguments.checksumOutput.open("x", encoding="ascii", newline="\n") as outputFile:
+            outputFile.write(checksum)
 
-    if set(checksums) != expectedNames:
-        raise RuntimeError("The IPS checksum manifest does not list every profile")
-
-    for name in sorted(expectedNames):
-        path = arguments.directory / name
-        data = path.read_bytes()
-        if not data.startswith(b"PATCH") or not data.endswith(b"EOF"):
-            raise RuntimeError("Invalid IPS file: " + name)
-
-        if FileHash(path) != checksums[name]:
-            raise RuntimeError("IPS checksum mismatch: " + name)
-
-    print(f"Checked {len(profiles)} IPS release assets")
+    print("Checked the unified update code.ips release asset")
 
 
 if __name__ == "__main__":
-    CheckIpsRelease()
+    Main()

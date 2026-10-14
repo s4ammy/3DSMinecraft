@@ -20,6 +20,7 @@ jobs:
         outputs:
             package: ${{ steps.version.outputs.package }}
             release: ${{ steps.version.outputs.release }}
+            ipsDirectory: ${{ steps.version.outputs.ipsDirectory }}
         steps:
             -   uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
                 with:
@@ -43,6 +44,9 @@ jobs:
                     with open(os.environ["GITHUB_OUTPUT"], "a") as outputFile:
                         outputFile.write("package=" + (releaseTag or "dev") + "\n")
                         outputFile.write("release=" + releaseTag + "\n")
+                        outputFile.write("ipsDirectory=release/ips/v" + projectVersion + "\n")
+            -   name: Verify release IPS
+                run: python3 scripts/checkIpsRelease.py
 
     build:
         needs: version
@@ -74,6 +78,10 @@ jobs:
                 run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DMC3DS_FETCH_TOOLS=ON
             -   name: Build
                 run: cmake --build build --config Release --parallel 2
+            -   name: Test
+                run: ctest --test-dir build --build-config Release --output-on-failure --no-tests=error
+            -   name: Test release validation
+                run: python -m unittest discover --start-directory tests --pattern ReleaseIpsTests.py
             -   name: Package and smoke test
                 run: python scripts/packageRelease.py --platform ${{ matrix.platform }} --binary-dir ${{ matrix.binaryDir }}
             -   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -96,6 +104,7 @@ jobs:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             GH_REPO: ${{ github.repository }}
             RELEASE_TAG: ${{ needs.version.outputs.release }}
+            IPS_DIRECTORY: ${{ needs.version.outputs.ipsDirectory }}
         steps:
             -   uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
                 with:
@@ -105,17 +114,16 @@ jobs:
                     pattern: mc3ds-patcher-*-x64
                     merge-multiple: true
                     path: dist
-            -   name: Verify prepared IPS files
-                run: python3 scripts/checkIpsRelease.py --directory "release/ips/$RELEASE_TAG"
+            -   name: Verify prepared IPS
+                run: python3 scripts/checkIpsRelease.py --directory "$IPS_DIRECTORY" --checksum-output dist/code.ips.sha256
             -   name: Verify packages and publish release
                 working-directory: dist
                 shell: bash
                 run: |
                     set -euo pipefail
+                    cp "../$IPS_DIRECTORY/code.ips" code.ips
                     sha256sum --check ./*.sha256
-                    cp "../release/ips/$RELEASE_TAG"/code-*.ips .
                     cat ./*.sha256 > SHA256SUMS.txt
-                    cat "../release/ips/$RELEASE_TAG/SHA256SUMS.txt" >> SHA256SUMS.txt
                     releaseOptions=()
                     if [[ "$RELEASE_TAG" == *-* ]]; then
                         releaseOptions+=(--prerelease)
@@ -147,13 +155,13 @@ jobs:
                         else
                             gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA"
                         fi
-                        gh release upload "$RELEASE_TAG" ./*.tar.gz ./*.zip ./*.ips SHA256SUMS.txt --clobber
+                        gh release upload "$RELEASE_TAG" ./*.tar.gz ./*.zip code.ips SHA256SUMS.txt --clobber
                     else
                         if [[ "$RELEASE_TAG" == v0.4.15 ]]; then
-                            gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip ./*.ips SHA256SUMS.txt \
+                            gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip code.ips SHA256SUMS.txt \
                                 --target "$GITHUB_SHA" --draft --title "Touchscreen update" --notes "" "${releaseOptions[@]}"
                         else
-                            gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip ./*.ips SHA256SUMS.txt \
+                            gh release create "$RELEASE_TAG" ./*.tar.gz ./*.zip code.ips SHA256SUMS.txt \
                                 --target "$GITHUB_SHA" --draft --title "$RELEASE_TAG" --generate-notes "${releaseOptions[@]}"
                         fi
                     fi

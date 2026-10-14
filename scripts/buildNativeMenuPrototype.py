@@ -9,7 +9,6 @@ from buildRuntimeControls import nativeReservations as reservations, referenceHa
 
 baselineHash = "b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0"
 baselineIpsHash = "886a892d577987563c1cf2ea7292bb6c2bf583bf9d9af8c516e9e6062d64fe7a"
-projectPath = Path(__file__).resolve().parents[1]
 
 
 def ArmBranch(source, destination, link=False):
@@ -47,13 +46,14 @@ def Main():
     parser = argparse.ArgumentParser(description="Build the native settings/chunk-distance experiment over the preserved v0.4.18 patch")
     parser.add_argument("--stock-code", type=Path, required=True)
     parser.add_argument("--baseline-code", type=Path, required=True)
+    parser.add_argument("--baseline-ips", type=Path, help="Defaults to code.ips beside the baseline executable")
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--overlay", type=Path)
     args = parser.parse_args()
     stock = args.stock_code.read_bytes()
     baseline = args.baseline_code.read_bytes()
-    baselineIps = (projectPath / "release/ips/v0.4.18/code-update-controls.ips").read_bytes()
+    baselineIps = (args.baseline_ips or args.baseline_code.with_suffix(".ips")).read_bytes()
     if hashlib.sha256(stock).hexdigest() != referenceHash or hashlib.sha256(baseline).hexdigest() != baselineHash:
         raise ValueError("Expected exact stock and preserved v0.4.18 executables")
     if hashlib.sha256(baselineIps).hexdigest() != baselineIpsHash or ApplyIps(stock, baselineIps) != baseline:

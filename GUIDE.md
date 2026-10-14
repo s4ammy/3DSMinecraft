@@ -4,7 +4,7 @@ This guide is for the European base game v0.1.0 and update v9.11.0. The patcher 
 
 ## Experimental chunk settings
 
-`release/experiments/chunk-settings-20261014/code.ips` extends the settings-next candidate below. Open **Mod Settings > Display** and scroll below the visual preset. The four new controls use native dropdowns:
+The single release asset, `release/ips/v0.4.18/code.ips`, is the tested `chunk-settings-20261014` candidate and includes the earlier native settings improvements below. It is for the European v9.11.0 update, not the base-only game. Open **Mod Settings > Display** and scroll below the visual preset. The four new controls use native dropdowns:
 
 | Setting | Choices | Default |
 | --- | --- | --- |
@@ -33,14 +33,15 @@ Use Display for Quality/Balanced/Low memory presets and overlay Off/FPS/Full. Us
 
 Back up saves and settings before testing. This candidate reads older settings and saves the extended `MC3DS3` format when leaving the menu. Older patches cannot read that new format; restore your settings backup when rolling back. The original v0.4.18 and `native-menu-20261014` IPS files are preserved. Replace only `/luma/titles/000400000017CA00/code.ips`; do not install extracted executables or ExHeader files.
 
-The current source rebuilds the latest chunk-settings experiment, using your exact stock update and preserved v0.4.18 patched executable:
+The current source rebuilds the release candidate using your exact stock update. First build the baseline executable and IPS with the PC fixture tool, then compile the native payload with Clang, LLD and LLVM utilities:
 
 ```sh
+build/buildRuntimeFixture /path/to/stock/update build-chunk-settings/baseline
 python3 scripts/buildRuntimeControls.py --reference-code /path/to/stock/code.bin --native-menu --output-header build-chunk-settings/RuntimeControlsData.h --artifacts-dir build-chunk-settings/payload
-python3 scripts/buildNativeMenuPrototype.py --stock-code /path/to/stock/code.bin --baseline-code /path/to/v0.4.18/code.bin --payload build-chunk-settings/payload --output build-chunk-settings/fixture
+python3 scripts/buildNativeMenuPrototype.py --stock-code /path/to/stock/code.bin --baseline-code build-chunk-settings/baseline/code.bin --payload build-chunk-settings/payload --output build-chunk-settings/fixture
 ```
 
-Both inputs are hash-guarded. Do not pass a separate `--overlay` payload: this candidate includes the overlay in the integrated build. No game executable is distributed with the release.
+The stock fixture directory contains `exheader.bin`, `exefs/code.bin` and `exefs/icon.bin`. On Windows the fixture tool is `build/Release/buildRuntimeFixture.exe`. Both executables and the baseline IPS are hash-guarded. The prototype builder reads `code.ips` beside the baseline executable, or an explicit `--baseline-ips` path. Do not pass a separate `--overlay` payload: this candidate includes the overlay in the integrated build. No game executable is distributed with the release.
 
 ## Before you start
 
@@ -117,9 +118,11 @@ If compatible bootstrap titles are already installed, skip this section. A v0.3.
 
 ## Make the Luma patch
 
-If you just made the bootstrap CIAs, you already have `code.ips`. Use the one from `bootstrap-update` when the update is installed, or `bootstrap-base` when it is not.
+If you just made the bootstrap CIAs, you already have `code.ips`. For a base-only installation, use the one from `bootstrap-base`. When the supported update is installed, use the release download below for the latest settings.
 
-For the supported European base v0.1.0 and update v9.11.0, [Releases](https://github.com/s4ammy/3DSMinecraft/releases) also provide ready-made IPS files. Choose a `code-base-...ips` file if no update is installed, or `code-update-controls.ips` if the matching bootstrap update is installed. The update asset contains all four input modes and the in-game settings; the base assets still offer `l-circle-pad` and `circle-pad-pro`. There is no separate overlay asset in v0.4.17. Rename the chosen file to `code.ips` when copying it to the SD card. These IPS files do not replace the one-time bootstrap CIA installation.
+[Releases](https://github.com/s4ammy/3DSMinecraft/releases) now provide one ready-made `code.ips` for the European v9.11.0 update. It includes all four input modes, native **Mod Settings**, camera/touch/binding conveniences, visual and overlay settings, and chunk/render-distance settings. Copy it without renaming. You still need the matching bootstrap installation. This asset is not compatible with the base game without the update.
+
+The patcher's generated update IPS still contains the earlier **Options > Controls** settings payload. Installing it over the release IPS would remove the newer native menu and chunk settings. Use the release download for those features; the commands below remain useful for the earlier payload or base-only control profiles.
 
 For later changes, run the patcher again without `--bootstrap-cia`. With an installed update, use:
 
@@ -178,15 +181,18 @@ The executable is in `build` on Linux or `build\Release` on Windows. MinGW-w64 a
 
 Pushing to `main` builds both platforms and publishes the version from `CMakeLists.txt`. Published releases are left alone, so bump that version before the next release. An explicit matching `v*` tag also works, including prereleases. Other branches, pull requests, and manual runs produce build artifacts only.
 
-Release jobs also package three IPS files and include their hashes in `SHA256SUMS.txt`. Before publishing a new version, generate its IPS files from the private reference base and update CIAs with the matching patcher binary:
+Release jobs publish the Windows and Linux patcher packages, one `code.ips`, and their combined `SHA256SUMS.txt`. Only `release/ips/v0.4.18/code.ips` is allowed through `.gitignore`; older variants, experiments and local reports stay ignored. The workflow never uploads `code-*.ips` files.
+
+To prepare the current validated candidate, rebuild it as described above and verify it against the private stock executable:
 
 ```sh
-python3 scripts/prepareIpsRelease.py --patcher /path/to/mc3ds-patcher \
-    --base-cia /path/to/base.cia --update-cia /path/to/update.cia \
-    --seed-file /path/to/title-seed.bin --output release/ips/vVERSION
-python3 scripts/checkIpsRelease.py --directory release/ips/vVERSION
+python3 scripts/prepareIpsRelease.py --ips build-chunk-settings/fixture/code.ips \
+    --stock-code /path/to/stock/code.bin --output release/ips/v0.4.18
+python3 scripts/checkIpsRelease.py
 ```
 
-Replace `vVERSION` with the version in `CMakeLists.txt`, such as `v0.4.18`. Include the generated `release/ips/vVERSION` directory in the release source. The workflow checks all three IPS files before publishing. Original CIAs and seeds stay private and are not included in release assets.
+Preparation refuses to overwrite an existing `code.ips`. It checks the stock executable, the candidate IPS and the resulting executable against pinned hashes. CI verifies the IPS without needing private game files and generates its checksum manifest during packaging. Local legacy files beside the release IPS are ignored and are not release inputs.
+
+For a new release, validate the new candidate first, then update `CMakeLists.txt`, the version and hashes in `scripts/checkIpsRelease.py`, and the exact version-directory exceptions in `.gitignore` together. Add only the new version's `code.ips` under `release/`. Original CIAs, executables and seeds remain private.
 
 For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.18`. On Windows, use `--platform windows --binary-dir build/Release`. Output goes to `dist`.

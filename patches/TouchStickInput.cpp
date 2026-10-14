@@ -1,5 +1,9 @@
 #include "TouchStick.h"
 
+#if defined(_MSC_VER) || __STDC_HOSTED__
+#include <cmath>
+#endif
+
 bool TouchStick::Update(TInputState &state, int x, int y, bool held, bool gameplay) {
     return UpdateConfigured(state, x, y, held, gameplay, TSettings{});
 }
@@ -29,7 +33,12 @@ bool TouchStick::UpdateConfigured(TInputState &state, int x, int y, bool held, b
     }
 
     if (consumed && !state.canceled && distanceSquared > settings.deadZone * settings.deadZone) {
+#if defined(_MSC_VER) || __STDC_HOSTED__
+        const auto distance = std::sqrt(distanceSquared);
+#else
+        //The injected ARM payload has no standard library.
         const auto distance = __builtin_sqrtf(distanceSquared);
+#endif
         const auto fullDistance = static_cast<float>(settings.radius - 6);
         const auto strength = distance < fullDistance ?
             (distance - settings.deadZone) * (100.0f / (fullDistance - settings.deadZone)) :
