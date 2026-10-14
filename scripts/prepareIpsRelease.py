@@ -11,7 +11,6 @@ profiles = (
     ("base-l-circle-pad", "base", "patchedCodeHash", ()),
     ("base-circle-pad-pro", "base", "circlePadProCodeHash", ("--controls", "circle-pad-pro")),
     ("update-controls", "update", "updateRuntimeControlsCodeHash", ()),
-    ("update-controls-overlay", "update", "updateRuntimeControlsOverlayCodeHash", ("--overlay",)),
 )
 
 

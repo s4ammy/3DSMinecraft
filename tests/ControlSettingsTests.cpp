@@ -96,7 +96,7 @@ void ControlSettingsTests::CheckSharedBindings() {
             ControlSettings::Apply(config, input, sample, context);
             return sample.buttons;
         };
-        const auto originalAction = mode == 0 ? 0x200U : 2U;
+        const auto originalAction = mode == 0 ? 0x200U : (mode == 3 ? 0U : 2U);
         Require(apply(2) == (1 | originalAction), "Shared B did not activate both gameplay actions");
         Require(apply(1) == 0, "Jump's old binding remained active");
         Require(ControlSettings::SetBinding(config, 2, 2), "Cannot assign three actions to B");
@@ -148,8 +148,7 @@ void ControlSettingsTests::CheckPersistence() {
 void ControlSettingsTests::CheckEveryAction() {
     constexpr unsigned int nativeButtons[] = {
         1, 0x200, 0x100, 2, 0x400, 0x800, 0x20, 0x10, 0x40, 0x80, 8, 4, 0x4000, 0x8000, 0,
-        1, 2, 0x400, 0x800, 0x200, 0x100, 0x40, 0x80, 0x20, 0x10, 8, 4
-    };
+        1, 2, 0x400, 0x800, 0x200, 0x100, 0x40, 0x80, 0x20, 0x10, 8, 4, 0x4000, 0x8000, 0, 0, 0, 0};
     for (auto mode = 0U; mode < ControlSettings::modeCount; ++mode) {
         for (auto index = 0U; index < ControlSettings::bindingCount; ++index) {
             ControlSettings::TConfig config;
@@ -162,8 +161,9 @@ void ControlSettingsTests::CheckEveryAction() {
             Require(ControlSettings::SetBinding(config, index, 1), "An exposed action cannot be rebound");
             ControlSettings::TInputState input{};
             ControlSettings::TSample sample{100, -100, 70, -70, 1};
-            const auto context = index < ControlSettings::gameplayBindingCount ?
-                ControlSettings::EContext::GAMEPLAY : ControlSettings::EContext::MENU;
+            const auto context = ControlSettings::IsGameplayBinding(index) ?
+                ControlSettings::EContext::GAMEPLAY :
+                ControlSettings::EContext::MENU;
             ControlSettings::Apply(config, input, sample, context);
             Require(sample.buttons == nativeButtons[index], "An exposed action produced the wrong native button");
             if (index == ControlSettings::cameraModifierIndex && mode == 0) {

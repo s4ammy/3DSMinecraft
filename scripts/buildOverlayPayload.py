@@ -16,7 +16,11 @@ def Main():
     parser.add_argument("--reference-code", dest="referenceCode", type=Path, required=True)
     parser.add_argument("--artifacts-dir", dest="artifactsPath", type=Path)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--background", action="store_true")
+    parser.add_argument("--output-header", dest="outputHeader", type=Path)
     arguments = parser.parse_args()
+    if arguments.background and arguments.outputHeader is None:
+        raise ValueError("Use a separate --output-header for the background experiment")
     reference = arguments.referenceCode.read_bytes()
     if hashlib.sha256(reference).hexdigest() != referenceHash:
         raise RuntimeError("The input is not the supported stock update executable")
@@ -24,7 +28,9 @@ def Main():
         temporaryPath = Path(temporaryDirectory)
         elfPath = temporaryPath / "overlay.elf"
         binaryPath = temporaryPath / "overlay.bin"
-        command = ["clang++", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-mfpu=vfpv2", "-mfloat-abi=hard", "-std=c++17", "-Os", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-ffunction-sections", "-fdata-sections", "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,-e,DrawDebugOverlay", f"-Wl,-T,{projectPath / 'patches/DebugOverlay.ld'}", str(projectPath / "patches/DebugOverlay.cpp"), str(projectPath / "patches/OverlayMetrics.cpp"), "-o", str(elfPath)]
+        command = ["clang++", "--target=arm-none-eabi", "-march=armv6k", "-marm", "-mfpu=vfpv2", "-mfloat-abi=hard", "-std=c++17", "-Os", "-fno-inline-functions", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables", "-ffunction-sections", "-fdata-sections", "-nostdlib", "-fuse-ld=lld", "-Wl,--no-undefined", "-Wl,-e,DrawDebugOverlay", f"-Wl,-T,{projectPath / 'patches/DebugOverlay.ld'}", str(projectPath / "patches/DebugOverlay.cpp"), str(projectPath / "patches/OverlayMetrics.cpp"), "-o", str(elfPath)]
+        if arguments.background:
+            command.append("-DMC3DS_OVERLAY_BACKGROUND")
         subprocess.run(command, check=True)
         subprocess.run(["llvm-objcopy", "-O", "binary", "--only-section=.text", str(elfPath), str(binaryPath)], check=True)
         payload = struct.pack("<I", 0xeaffffff) + binaryPath.read_bytes()
@@ -73,17 +79,20 @@ def Main():
         ("SDK VBlank callbacks", 0x7C69A4, 0x30),
         ("CTR frame submission", 0x4F87C4, 0x400),
     )
+    if arguments.background:
+        guards += (("GUI solid rectangle ABI", 0x6cff68, 0xb8), ("font measurement ABI", 0x71ad28, 0x18))
     for name, address, size in guards:
         offset = address - 0x100000
         digest = hashlib.sha256(reference[offset:offset + size]).hexdigest()
         lines.append(f'        {{"{name}", 0x{offset:x}, 0x{size:x}, "{digest}"}},')
     lines += ["    };", "}", ""]
     content = "\n".join(lines)
-    target = projectPath / "src/OverlayData.h"
+    target = arguments.outputHeader or projectPath / "src/OverlayData.h"
     if arguments.check:
         if target.read_text() != content:
             raise RuntimeError("OverlayData.h does not match the rebuilt payload")
     else:
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
     print(f"Overlay payload: {len(payload)} bytes, SHA-256 {hashlib.sha256(payload).hexdigest()}")
 

@@ -1,5 +1,6 @@
 #include "Patches.h"
 #include "UpdatePatchData.h"
+#include "RuntimeControlsData.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -35,6 +36,9 @@ void PatchProfileTests::CheckUpdate(const std::filesystem::path &fixture) {
         Require(Mc3ds::ApplyIpsPatch(legacyControls, ips) == result.code,
             "IPS left legacy control instructions, literal bytes or physical bindings behind");
         Require(result.knownExecutable, "Fixture should be recognized");
+        Require(Mc3ds::ArmBranchTarget(Mc3ds::Read32(result.code, 0xd87a0), 0x1d87a0) ==
+                Mc3ds::updateLimitDeferredBuilderPoolAddress,
+            "Deferred builders are not bounded");
         Require(Mc3ds::Read32(result.code, 0xd5990) == 0xe3a02000, "Nearby edits still rebuild synchronously");
         Require((Mc3ds::Read32(result.code, 0x6fb48) & 0xff000000U) == 0x9a000000U &&
                 Mc3ds::ArmBranchTarget(Mc3ds::Read32(result.code, 0x6fb48), 0x16fb48) == 0x35d634,
@@ -92,7 +96,7 @@ int main(int argc, char **argv) {
 
     try {
         PatchProfileTests::CheckUpdate(argv[1]);
-        std::cout << "Both unified update profiles passed hashes, IPS round trips, original bindings, layout and rejection checks\n";
+        std::cout << "Unified update and legacy flag passed hashes, IPS round trips, original bindings, layout and rejection checks\n";
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
         return 1;

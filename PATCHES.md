@@ -44,6 +44,24 @@ Version 0.4.10 specializes forward allocation searches for four-byte alignment. 
 
 ## How it finds the code
 
+### Experimental runtime chunk limits
+
+The separate `chunk-settings-20261014` native-menu candidate makes the reduced limits configurable in Display: render distance, nearby chunk radius, map-update radius and deferred builder count. Defaults are unchanged. Restart-frozen settings keep offset-table bounds, shuffle size, loading totals and readiness checks coherent. Higher distances use more memory; nearby radius also changes ticking/entity checks. See [settings and ranges](GUIDE.md#experimental-chunk-settings) and [validation limits](PERFORMANCE.md#restart-frozen-chunk-settings-experiment). This does not promote the experiment into the normal patcher or overwrite previous IPS files.
+
+### Chunk-builder memory (v0.4.18)
+
+The deferred builder pool is capped at four, retaining the separate immediate builder and native retry when the pool is empty. This avoids six 491,600-byte render-layer scratch reservations without reducing the ten render layers or their capacity. Heap policy and GPU buffer ownership are unchanged. A smaller queue can affect chunk-loading throughput; physical Old 3DS testing remains necessary. See [memory validation](PERFORMANCE.md#v0418-chunk-builder-memory-headroom).
+
+### In-game settings (v0.4.17)
+
+One update IPS now includes L + Circle Pad, Circle Pad Pro, Touch stick and dedicated ABXY camera. The six native Controls subpages expose gameplay/menu bindings, camera tuning, touch-stick geometry/appearance, visual settings and binding tools. Duplicate bindings remain legal; unbinding disables an action. Standard button prompts follow the active context/profile, using compact text for chords, START/SELECT and unbound actions. Analog diagrams and stock Controls recovery prompts are unchanged.
+
+The current save value uses `MC3DS2:` under the existing `mc3ds_controls_v1` options key, with four 33-binding profiles, nine per-mode settings and six global settings. The original v1 values migrate without changing existing bindings. Runtime state is now 4,800 bytes, still allocated on the heap with the existing BSS pointer and unchanged bootstrap layout. A table-driven replacement preserves all 104 records in the native dictation builder to provide additional code space. Nine keyboard/dictation builder cases match stock ARM execution.
+
+Display options control the overlay, particle render distance/visibility, weather rendering, and bottom-screen map refresh. World simulation and particle cleanup remain native. Low-memory textures are frozen at options load and require a full restart: a guarded terrain-atlas loader skips mip 0 and promotes the two existing smaller mip levels. It rejects unsupported names, formats, dimensions, mip counts or file lengths. It neither edits assets nor attempts a live texture replacement.
+
+Mesh construction now skips work for blocks whose six faces are already masked hidden, and directly reads a biome through the existing chunk cache only when its coordinates and dimensions are valid. Misses and absent biomes retain the original path. No persistent biome cache, lighting invalidation change, allocator fallback or experimental lighting queue is added. See [current validation and limitations](PERFORMANCE.md#v0417-settings-and-mesh-work).
+
 ### In-game controls (v0.4.16)
 
 The European update uses one runtime controls payload. It adds native category-style rows to Options > Controls, including the native select-release path required for A-button activation inside a subpage. It remaps physical buttons before native gameplay/menu action dispatch and preserves stock navigation on the Controls page itself. The selected mode and three independent 27-binding profiles are serialized as `mc3ds_controls_v1` in the game's existing options file. Missing or malformed values retain defaults. Leaving Options uses the normal save path; no new SD permissions or file system implementation is introduced.

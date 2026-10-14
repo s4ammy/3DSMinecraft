@@ -7,6 +7,7 @@ namespace CompactBindings {
     };
 
     void Append(void *vector, const TBinding *bindings, unsigned int count);
+    extern "C" void BuildDictationBindings(void *options, void *vector);
     extern "C" void BuildKeyboardBindings(unsigned int *vector, const unsigned char *options);
     extern "C" void BuildSharedKeyboardBindings(void *options, void *vector);
     extern "C" void BuildModifiedKeyboardBindings(void *options, void *vector);

@@ -340,7 +340,12 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     Write32(result.code, anchors.at("particleCall"), ArmBranch(particleCallAddress, pickupAddress));
     InstallRuntimeControls(code, result);
     report << "Options > Controls switches modes and edits bindings without replacing the IPS.\n"
+           << "Modes: L + Circle Pad, Circle Pad Pro, Touch stick, ABXY camera.\n"
            << "Each mode retains its own bindings; existing defaults are installed on first use.\n"
+           << "Shared bindings and unbound actions are allowed; Camera exposes ABXY look directions.\n"
+           << "Camera/touch tuning, binding tools, remapped prompts and display settings are included.\n"
+           << "Low-memory terrain textures require saving options and fully restarting the game.\n"
+           << "Mesh optimizations skip fully hidden faces and reuse valid cached-chunk biome lookups.\n"
            << "Controls-page navigation stays stock for recovery; other menus use the saved menu bindings.\n"
            << "Container cancel uses a fresh press; opening releases cannot close containers.\n"
            << "Experimental controls UI: an in-world Options graphics-allocation failure remains unresolved.\n";
@@ -411,15 +416,9 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
             Read32(code, updateLateCompletionHookOffset) == 0x9a00002f,
         "Late worker completion hook or reserved gap changed");
     std::fill_n(result.code.begin() + updateOverlayOffset, updateOverlayCapacity, std::uint8_t{0});
-    if (enableOverlay) {
-        std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
-        Write32(result.code, updateOverlayGateOffset, 0xe320f000);
-        Write32(result.code, updateOverlayVblankHookOffset, updateOverlayVblankAddress);
-    } else {
-        //Keep the retired renderer inert while retaining the adjacent heap helpers.
-        Write32(result.code, updateOverlayOffset, 0xe12fff1e);
-        Write32(result.code, updateOverlayGateOffset, 0xea000005);
-    }
+    std::copy(overlay.begin(), overlay.end(), result.code.begin() + updateOverlayOffset);
+    Write32(result.code, updateOverlayGateOffset, 0xe320f000);
+    Write32(result.code, updateOverlayVblankHookOffset, updateOverlayVblankAddress);
 
     std::copy(heapSearch.begin(), heapSearch.end(), result.code.begin() + updateHeapSearchOffset);
     std::copy(alignedAllocation.begin(), alignedAllocation.end(), result.code.begin() + updateAlignedAllocationOffset);
@@ -442,17 +441,17 @@ Mc3ds::TPatchResult Mc3ds::PatchUpdateGame(const TBytes &code, const TBytes &exh
     Require(!known || outputHash == expectedHash,
         "Update executable did not reproduce the expected control profile: " + outputHash);
     report << "Pickup animations tick and expire with low graphics enabled.\n";
+    report << "Deferred chunk builders are capped at four, retaining native retry and the separate immediate builder.\n";
     report << "Nearby block edits use the existing priority rebuild queue instead of synchronous mesh generation.\n"
            << "Old meshes remain until completion; lighting and biome-color refreshes are retained.\n"
            << "Late frames poll one completed streaming job without starting another job on the main thread.\n"
            << "User Old 3DS testing confirmed reduced hitching in v0.4.14; v0.4.15 visual latency needs hardware testing.\n";
     if (enableOverlay) {
-        report << "FPS/debug overlay: enabled (--overlay).\n"
-               << "Custom bottom-screen overlay: presented FPS, average/peak frame interval and three arena heaps.\n"
-               << "Overlay replaces the stock frame-timer renderer and reuses its palette BSS without segment growth.\n";
-    } else {
-        report << "FPS/debug overlay: disabled (default); no custom drawing or frame-statistics callback.\n";
+        report << "Legacy --overlay is no longer needed: select the overlay in Controls > Display.\n";
     }
+
+    report << "FPS/debug overlay: in-game Off/FPS/Full selection, default Off.\n"
+           << "Overlay reuses the stock frame-timer palette BSS without segment growth.\n";
 
     report << "Locked heap free-list search can start at either end; allocation layout and coalescing are unchanged.\n"
            << "Four-byte-aligned allocations skip redundant per-block rounding; selection and commit remain exact.\n"

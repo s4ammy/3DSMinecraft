@@ -42,6 +42,19 @@ void Mc3ds::InstallRuntimeControls(const TBytes &original, TPatchResult &result)
     branch(0x632cd0, updateLoadControlSettingsAddress, true);
     branch(0x635034, updateSaveControlSettingsAddress, true);
     branch(0x679344, updateRuntimeHudDestroyHookAddress, false);
+    branch(0x28024c, updateRenderRuntimeParticlesAddress, false);
+    branch(0x2e6d40, updateRuntimeWeatherHookAddress, false);
+    branch(0x675488, updateRuntimeMapHookAddress, false);
+    branch(0x249944, updateRuntimeTextureHookAddress, false);
+    branch(0x30a800, updateSkipHiddenBlockFacesAddress, false);
+    branch(0x471074, updateDrawRuntimePromptAddress, false);
+    branch(0x17aa38, updateGetBiomeFromCachedChunkAddress, false);
+    if (Read32(original, 0xd87a0) != 0xe5840014) {
+        throw std::runtime_error("Deferred chunk-builder count store changed");
+    }
+
+    branch(0x1d87a0, updateLimitDeferredBuilderPoolAddress, false);
+    Write32(result.code, 0x7aa3c, 0xe1a00000);
     Write32(result.code, 0x579000, (ArmBranch(0x679000, updateDrawRuntimeControlsAddress) & 0x00ffffffU) | 0x0b000000U);
 
     auto controls = TBytes(0x100, 0);

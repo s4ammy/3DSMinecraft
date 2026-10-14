@@ -1,6 +1,16 @@
 #pragma once
 
 namespace DebugOverlay {
+    struct TDiagnostics {
+        unsigned int intervals[32];
+        unsigned int cursor;
+        unsigned int largest[3];
+    };
+
+    unsigned int ReadLargestBlock(const void *arena);
+    void DrawFrameGraph(const TDiagnostics &diagnostics, float x, float y, float scale);
+    void DrawScaledText(void *font, const char **text, const float *color, float x, float y, float scale);
+
     inline constexpr unsigned int ticksPerSecond = 16756991U * 16U;
 
     struct TFrameStats {

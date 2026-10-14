@@ -13,7 +13,7 @@ void Mc3ds::PrintHelp() {
                  "Usage: mc3ds-patcher input.cia [options]\n\n"
                  "  -o, --output DIRECTORY  Output folder for generated files\n"
                  "  --controls MODE        Base only: l-circle-pad (default) or circle-pad-pro\n"
-                 "  --overlay              Enable FPS/debug overlay (update only; default off)\n"
+                 "  --overlay              Legacy update flag; choose overlay in-game instead\n"
                  "  --bootstrap-cia        Also build a one-time installable bootstrap CIA\n"
                  "  --tools-dir DIRECTORY   Folder containing ctrtool and makerom\n"
                  "  --seeddb FILE           Local seeddb.bin for encrypted titles\n"

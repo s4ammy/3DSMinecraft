@@ -1,8 +1,0 @@
-435c48a571396f18695917c48d47b73ee00b66daec61cb6fb32e478bd8e50d6a  code-base-l-circle-pad.ips
-2c3a33493322aab369c6aeadafcfe72ed28c63dd7c6d529a7f4a0430623dfabe  code-base-circle-pad-pro.ips
-0449c060fd69450a5671cb6c6f4d4a1169c20a1a8c3de462557ff58131b337d1  code-update-l-circle-pad.ips
-3106a2c5fc59b565c13b4ca153013166d746f0fcab20962934609f7b61bb20f9  code-update-circle-pad-pro.ips
-f343224c29aba6fdd33e6d106622d3917f56d9393a4b8b1f620c807de99ea5e7  code-update-l-circle-pad-overlay.ips
-0e3dd718707cae5f2b50c4464f00aaba2d9edba3fecf5cd6e0a2d1ee7b0ee61d  code-update-circle-pad-pro-overlay.ips
-da400b7cd051a26678ef3d3058e4f460d93b10a8cfd95a1ff4df19a14584f7f8  code-update-touch-stick.ips
-f61257ce54796b6c0b616763af79bcd2c6b2eca91316620547512ccd930c0e40  code-update-touch-stick-overlay.ips

@@ -2,8 +2,19 @@
 
 #include "ControlSettings.h"
 #include "TouchStick.h"
+#include "DebugOverlay.h"
 
 namespace RuntimeControls {
+    enum class EPage : unsigned char {
+        GAMEPLAY,
+        MENUS,
+        CAMERA,
+        TOUCH,
+        DISPLAY,
+        TOOLS,
+        OVERLAY,
+        COUNT
+    };
     struct TString {
         char *data;
     };
@@ -40,23 +51,42 @@ namespace RuntimeControls {
         unsigned int captureButtons;
         int captureIndex;
         bool captureReady;
-        bool editMenus;
-        unsigned char reserved;
+        EPage page;
+        ControlSettings::EMode copySource;
         volatile ControlSettings::EMode workerMode;
         char status[96];
+        unsigned int selectedBinding;
+        void *mapOwner;
+        unsigned long long mapTick;
+        unsigned int mapRate;
+        unsigned int textureLoads;
+        unsigned int textureBytesSaved;
+        unsigned int activeLowMemoryTextures;
+#ifdef MC3DS_NATIVE_MENU
+        void *nativeMenu;
+#endif
         unsigned char workerStack[4104];
+#ifdef MC3DS_NATIVE_MENU
+        DebugOverlay::TDiagnostics diagnostics;
+#endif
     };
 
-    static_assert(sizeof(TState) == 4576, "Runtime controls state ABI changed");
+    static_assert(sizeof(TState) <= 5120, "Runtime controls state exceeded its budget");
     static_assert(__builtin_offsetof(TState, workerContext) == 16, "Thread entry context ABI changed");
-    static_assert(__builtin_offsetof(TState, workerStack) == 472, "Worker stack layout changed");
+    static_assert(sizeof(TState::workerStack) >= 4096 + 7, "Worker stack alignment margin changed");
 
     TState *GetState();
     void RefreshLabels(TState &state);
+    unsigned int RowBinding(const TState &state, unsigned int row);
     void Changed(TState &state);
     bool IsControlsPage(const TState &state);
     void Capture(TState &state, unsigned int buttons, bool touching);
     char *Append(char *text, const char *value);
+    char *AppendNumber(char *text, unsigned int value);
+    void DescribeSetting(const TState &state, ControlSettings::ESetting setting, char *text);
+    void DescribePageRow(const TState &state, unsigned int row, char *text);
+    void ActivatePageRow(TState &state, unsigned int row);
+    TouchStick::TSettings GetTouchSettings(const TState &state);
     bool Equals(const char *left, const char *right);
 
     extern "C" void BuildControlRows(unsigned char *screen);

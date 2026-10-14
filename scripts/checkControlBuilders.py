@@ -5,6 +5,7 @@ from pathlib import Path
 
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_ARM, UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_PC, UC_ARM_REG_CPSR
+from unicorn.arm_const import UC_ARM_REG_C1_C0_2, UC_ARM_REG_FPEXC
 
 
 class CBuilderFixture:
@@ -12,6 +13,8 @@ class CBuilderFixture:
         self.cpu = Uc(UC_ARCH_ARM, UC_MODE_ARM)
         self.cpu.mem_map(0x100000, 0xb00000)
         self.cpu.mem_write(0x100000, code)
+        self.cpu.reg_write(UC_ARM_REG_C1_C0_2, 0xf00000)
+        self.cpu.reg_write(UC_ARM_REG_FPEXC, 0x40000000)
         self.cpu.mem_map(0x2000000, 0x20000)
         self.nextAllocation = 0x2010000
         self.records = []
@@ -33,6 +36,9 @@ class CBuilderFixture:
             cpu.mem_write(r0, bytes(cpu.mem_read(r1, 4)))
         elif address == 0x8f35a0:
             self.records.append([self.string(self.word(r1)), self.word(r1 + 4), cpu.mem_read(r1 + 8, 1)[0]])
+        elif address == 0x8f20d0:
+            self.records.append([self.string(self.word(r1)), self.string(self.word(r1 + 4)),
+                                 cpu.mem_read(r1 + 8, 1)[0], self.word(r1 + 12)])
         elif address == 0x1214f4:
             begin, end, capacity = struct.unpack("<III", cpu.mem_read(r0, 12))
             if begin == 0:
@@ -71,7 +77,7 @@ def Main():
     original = arguments.reference_code.read_bytes()
     candidate = arguments.patched_code.read_bytes() if arguments.patched_code else None
     results = {}
-    for address, modes in ((0x4a403c, range(6)), (0x711014, [0]), (0x710a14, [0])):
+    for address, modes in ((0x4a403c, range(6)), (0x711014, [0]), (0x710a14, [0]), (0x41efa8, [0])):
         for mode in modes:
             expected = CBuilderFixture(original).run(address, mode)
             if candidate is not None:

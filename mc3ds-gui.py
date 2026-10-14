@@ -341,11 +341,9 @@ class CFormPage(QWidget):
         self.controls.addItem("L + Circle Pad", "l-circle-pad")
         self.controls.addItem("Circle Pad Pro", "circle-pad-pro")
         optionsLayout.addWidget(self.controls)
-        controlsHint = QLabel("The update includes all three modes and custom bindings in Options > Controls.")
+        controlsHint = QLabel("The update includes four input modes, custom bindings, camera settings and display options in Options > Controls.")
         controlsHint.setWordWrap(True)
         optionsLayout.addWidget(controlsHint)
-        self.overlay = QCheckBox("Show the FPS/debug overlay (update only)")
-        optionsLayout.addWidget(self.overlay)
         self.checkOnly = QCheckBox("Check inputs only, without writing files")
         optionsLayout.addWidget(self.checkOnly)
         layout.addWidget(optionsCard)
@@ -373,10 +371,6 @@ class CFormPage(QWidget):
 
     def updateOptions(self) -> None:
         updateSelected = bool(self.updateField.path()) if self.bootstrapMode else self.inputType.currentIndex() == 0
-        self.overlay.setEnabled(updateSelected)
-        if not updateSelected:
-            self.overlay.setChecked(False)
-
         baseNeeded = self.bootstrapMode or not updateSelected
         self.controls.setEnabled(baseNeeded)
         self.seedType.setEnabled(baseNeeded)
@@ -424,9 +418,6 @@ class CFormPage(QWidget):
                 updatePath = checkedCia(self.updateField, "update")
                 updateOutput = outputPath / "bootstrap-update"
                 updateArguments = [str(updatePath), "--bootstrap-cia", "-o", str(updateOutput)]
-                if self.overlay.isChecked():
-                    updateArguments.append("--overlay")
-
                 tasks.append(("update bootstrap CIA", updateArguments))
 
             if not checkOnly:
@@ -440,8 +431,6 @@ class CFormPage(QWidget):
             if not updateSelected:
                 arguments.extend(controls)
                 arguments.extend(seed)
-            elif self.overlay.isChecked():
-                arguments.append("--overlay")
 
             tasks.append(("Luma patch", arguments))
 

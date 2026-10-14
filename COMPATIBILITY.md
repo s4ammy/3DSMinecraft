@@ -19,7 +19,9 @@ Version 0.4.15 adds touch-stick gesture isolation across controller slots and co
 
 ## Reference SHA-256 hashes
 
-Version 0.4.16 consolidates the three update control modes into the native **Options > Controls** page, with per-mode button bindings and persistence in the normal options file. The existing bootstrap layout is unchanged. Base-only controls remain patch-time choices. Physical Old 3DS and Circle Pad Pro testing is still required for this revision.
+Version 0.4.17 includes four modes, including ABXY camera, in **Options > Controls**, with per-mode bindings and camera/touch tuning plus shared visual settings. v0.4.16 bindings migrate automatically. Bootstrap layout and base-only outputs are unchanged. Physical Old 3DS and Circle Pad Pro testing is still required.
+
+Version 0.4.18 retains those settings and caps deferred chunk builders at four to reduce scratch-buffer reservations. The native immediate builder and empty-pool retry remain. No bootstrap reinstall, new save format or allocator fallback is introduced. Physical Old 3DS loading throughput and long-session allocation stability remain unverified.
 
 This is an experimental candidate: editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar, but one Options transition hit an unresolved native 2 MiB graphics-allocation failure. See [runtime-controls validation](PATCHES.md#in-game-controls-v0416) before testing on hardware.
 
@@ -29,8 +31,7 @@ This is an experimental candidate: editing, persistence, gameplay remapping and 
 | Original update CIA | `8526ef24719d074c1b3de4742e23c795c003ff51d10f7ea99839c6974587a75b` |
 | Base executable, L + Circle Pad | `a1c746e9efbf8bd8d26deb5abe33e1944c9cfd579f8233239536d0166e3b5740` |
 | Base executable, Circle Pad Pro | `6aaca1236211154d86f81b23c84fae9913effd48d316a3bb05e02a077c9a71e2` |
-| Update executable, in-game controls, overlay off (default) | `0775fb339059313f0ab1d3fb67ed662f8507862d52ae71b19c30fb57282f9fa7` |
-| Update executable, in-game controls, `--overlay` | `4070d5b75f76ffeb7920c611a987959fa3b2a9e34d4d9572ff8c8de55b19c196` |
+| Update executable, all in-game settings (also with legacy `--overlay`) | `b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0` |
 
 Version 0.3.1 changed extended-header text metadata so Luma places its LayeredFS payload after the patcher's hooks. Version 0.3.2 forced on the update's retained frame-timer display. Version 0.4.0 fixed its invalid `2147483647 FPS` current value and replaced CIA rebuilding with external `code.bin` and `exheader.bin` output. Version 0.4.1 added the SD-application capability required for resource-pack access. Version 0.4.2 switched to the reliable bootstrap plus `code.ips` route. Version 0.4.3 adjusted the retained frame-timer layout. Version 0.4.4 added an experimental Mods UI proof of concept. Version 0.4.5 removes that UI experiment and all debug-overlay patches, then adds guarded chunk decompression, biome-layer RNG, and startup presentation optimizations.
 

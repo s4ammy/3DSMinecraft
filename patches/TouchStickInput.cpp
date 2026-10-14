@@ -1,13 +1,18 @@
 #include "TouchStick.h"
 
 bool TouchStick::Update(TInputState &state, int x, int y, bool held, bool gameplay) {
+    return UpdateConfigured(state, x, y, held, gameplay, TSettings{});
+}
+
+bool TouchStick::UpdateConfigured(TInputState &state, int x, int y, bool held, bool gameplay, const TSettings &settings) {
     state.lookX = 0;
     state.lookY = 0;
-    const auto dx = static_cast<float>(x - centerX);
-    const auto dy = static_cast<float>(centerY - y);
+    const auto dx = static_cast<float>(x - settings.x);
+    const auto dy = static_cast<float>(settings.y - y);
     const auto distanceSquared = dx * dx + dy * dy;
     if (held && !state.wasHeld) {
-        state.ownsTouch = gameplay && distanceSquared <= radius * radius;
+        state.ownsTouch = gameplay && settings.radius >= 8 && settings.deadZone >= 0 &&
+            settings.deadZone < settings.radius - 6 && distanceSquared <= settings.radius * settings.radius;
         state.canceled = false;
     }
 
@@ -23,9 +28,12 @@ bool TouchStick::Update(TInputState &state, int x, int y, bool held, bool gamepl
         state.canceled = true;
     }
 
-    if (consumed && !state.canceled && distanceSquared > 49.0f) {
+    if (consumed && !state.canceled && distanceSquared > settings.deadZone * settings.deadZone) {
         const auto distance = __builtin_sqrtf(distanceSquared);
-        const auto strength = distance < 46.0f ? (distance - 7.0f) * (100.0f / 39.0f) : 100.0f;
+        const auto fullDistance = static_cast<float>(settings.radius - 6);
+        const auto strength = distance < fullDistance ?
+            (distance - settings.deadZone) * (100.0f / (fullDistance - settings.deadZone)) :
+            100.0f;
         state.lookX = static_cast<short>(dx * strength / distance);
         state.lookY = static_cast<short>(dy * strength / distance);
     }
