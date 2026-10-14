@@ -20,7 +20,9 @@ The patcher supports the European base game v0.1.0 and update v9.11.0. Use the o
 
 The current controls revision adds persistent per-mode gameplay/menu button bindings, button chords, unbinding, and reset-to-defaults to the native update settings page. It preserves the existing performance patches and bootstrap layout. The base-only settings UI and physical Circle Pad Pro validation are not included in this revision. See [controls](INPUTS_EXPLAINED.md).
 
-Version 0.4.18 reduces chunk-builder scratch reservations by about 2.8 MiB with a smaller deferred builder pool. It remains experimental: this is memory headroom, not a demonstrated fix for every graphics-allocation crash or a proven FPS gain. See [validation and limits](PERFORMANCE.md#v0418-chunk-builder-memory-headroom).
+Version 0.4.19 includes the compact native settings UI and rendering fast paths, fixes the LayeredFS startup collision, and defers scroll layout to prevent a settings-pane lifetime fault. User hardware testing confirms startup and settings navigation work with the fixed IPS. The build remains experimental, with broader hardware and long-session testing outstanding. See [validation and limits](PERFORMANCE.md#v0419-native-menu-crash-fixes).
+
+It retains v0.4.18's reduction of about 2.8 MiB in chunk-builder scratch reservations. This is memory headroom, not a demonstrated fix for every graphics-allocation crash or a proven FPS gain. See [chunk-builder validation](PERFORMANCE.md#v0418-chunk-builder-memory-headroom).
 
 For more detail, see [compatibility and tested hashes](COMPATIBILITY.md), [controls](INPUTS_EXPLAINED.md), [included patches](PATCHES.md), [performance results](PERFORMANCE.md), and [overlay details](DEBUG_OVERLAY.md). Source builds and release packaging are covered in the [guide](GUIDE.md#build-from-source).
 

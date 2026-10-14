@@ -4,7 +4,7 @@ import json
 import struct
 from pathlib import Path
 
-from buildRuntimeControls import nativeReservations as reservations, referenceHash
+from buildRuntimeControls import lumaPathAddress, lumaPathCapacity, nativeReservations as reservations, referenceHash
 
 
 baselineHash = "b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0"
@@ -68,6 +68,8 @@ def Main():
         offset = address - 0x100000
         if not payload or len(payload) > 0xffff or offset == 0x454f46 or offset < 0 or offset + len(payload) > len(candidate):
             raise ValueError("Invalid prototype write")
+        if address < lumaPathAddress + lumaPathCapacity and address + len(payload) > lumaPathAddress:
+            raise ValueError("Prototype write overlaps Luma LayeredFS path storage")
         locations = set(range(offset, offset + len(payload)))
         if touched & locations:
             raise ValueError("Prototype writes overlap")
@@ -152,6 +154,9 @@ def Main():
             raise ValueError(f"Reused stock string was overwritten at {address}")
     if ApplyIps(stock, patch) != candidate or ApplyIps(baseline, patch) != candidate:
         raise AssertionError("Prototype IPS compatibility round trip failed")
+    pathOffset = lumaPathAddress - 0x100000
+    if candidate[pathOffset:pathOffset + lumaPathCapacity] != bytes(lumaPathCapacity):
+        raise ValueError("Luma LayeredFS path storage must remain unused")
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "code.bin").write_bytes(candidate)
     (args.output / "code.ips").write_bytes(patch)
@@ -159,6 +164,7 @@ def Main():
         "ipsSha256": hashlib.sha256(patch).hexdigest(), "experimental": True,
         "nativeMenuStateBytes": 404, "newBssBytes": 0, "overlayBackground": "DrawDebugOverlay" in symbols or args.overlay is not None,
         "renderFastPaths": renderRegions,
+        "lumaPathReservation": {"address": hex(lumaPathAddress), "bytes": lumaPathCapacity},
         "reusedChunkTableTailBytes": 32, "worldSettingsRestartRequired": True,
         "worldDefaults": {"renderChunks": 1, "nearbyRadius": 2, "nearbyOffsets": 25, "mapRadiusBlocks": 24, "deferredBuilders": 4},
         "scope": "Compact native settings and optional in-place rendering experiment. Existing settings, bindings, encoding, release files and production payload headers are preserved. Runtime validation is recorded separately."}

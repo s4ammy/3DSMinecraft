@@ -23,9 +23,9 @@ Version 0.4.17 includes four modes, including ABXY camera, in **Options > Contro
 
 The v0.4.18 patcher-generated baseline retains those settings and caps deferred chunk builders at four to reduce scratch-buffer reservations. The native immediate builder and empty-pool retry remain. That baseline needs no bootstrap reinstall, new settings format or allocator fallback. Physical Old 3DS loading throughput and long-session allocation stability remain unverified.
 
-The single downloadable v0.4.18 `code.ips` is the newer native-menu/chunk-settings candidate. It adds dedicated **Mod Settings** and configurable chunk distances/builders on top of the baseline, and saves settings as `MC3DS4`. Back up options before testing; older patches cannot read that format. It is update-only, retains the same bootstrap requirements, and does not establish a general graphics-allocation fix. The PC patcher's embedded update payload has not been replaced by this release-packaging change.
+The single downloadable v0.4.19 `code.ips` includes dedicated **Mod Settings**, the compact native UI, configurable chunk distances/builders and rendering fast paths. It reserves Luma's LayeredFS path storage and defers settings scroll layout until the pane's input calls return. User hardware testing confirms the fixed startup and settings navigation. It saves settings as `MC3DS4`; older patches cannot read that format. It is update-only, retains the same bootstrap requirements, and does not establish a general graphics-allocation fix. The PC patcher's embedded update payload remains the earlier baseline used for bootstrap creation.
 
-This is an experimental candidate: editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar, but one Options transition hit an unresolved native 2 MiB graphics-allocation failure. See [runtime-controls validation](PATCHES.md#in-game-controls-v0416) before testing on hardware.
+The build remains experimental. Editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar. The current scroll fix passed 21 page-interaction cycles and ten exit/reopen cycles. An earlier Options transition hit an unresolved native 2 MiB graphics-allocation failure, and an earlier breakpoint diagnostic failed during current-screen release. Those separate causes remain unconfirmed; broader hardware and long-session stability are unverified. See [current validation](PERFORMANCE.md#v0419-native-menu-crash-fixes) and [runtime-controls validation](PATCHES.md#in-game-controls-v0416).
 
 | File | SHA-256 |
 | --- | --- |
@@ -34,8 +34,8 @@ This is an experimental candidate: editing, persistence, gameplay remapping and 
 | Base executable, L + Circle Pad | `a1c746e9efbf8bd8d26deb5abe33e1944c9cfd579f8233239536d0166e3b5740` |
 | Base executable, Circle Pad Pro | `6aaca1236211154d86f81b23c84fae9913effd48d316a3bb05e02a077c9a71e2` |
 | Patcher-generated update executable (also with legacy `--overlay`) | `b4a45114e7fbc85b56f500cb26d8d7c454417446ea23a3a1cf593e7cae03f3c0` |
-| Release update executable, native menu and chunk settings | `8216d813b0f3af312a0724feb2503155e62e2be74ec393c58fb0bf34bb91a061` |
-| Release `code.ips` | `46bf9d96f15b281a046cd4d51a2f88053b67c27f9ad6bed7454a9d94546fcb09` |
+| Release update executable, native menu and chunk settings | `01138f3230df04cbc40bda87f920f9bac7e41706e8042b2e25695a6f4985ea34` |
+| Release `code.ips` | `46196cd8db74a83d3fcfbf1ea09400a27ecb60b09ae0e726f151d03d8d907e2b` |
 
 Version 0.3.1 changed extended-header text metadata so Luma places its LayeredFS payload after the patcher's hooks. Version 0.3.2 forced on the update's retained frame-timer display. Version 0.4.0 fixed its invalid `2147483647 FPS` current value and replaced CIA rebuilding with external `code.bin` and `exheader.bin` output. Version 0.4.1 added the SD-application capability required for resource-pack access. Version 0.4.2 switched to the reliable bootstrap plus `code.ips` route. Version 0.4.3 adjusted the retained frame-timer layout. Version 0.4.4 added an experimental Mods UI proof of concept. Version 0.4.5 removes that UI experiment and all debug-overlay patches, then adds guarded chunk decompression, biome-layer RNG, and startup presentation optimizations.
 

@@ -8,9 +8,11 @@ from pathlib import Path
 from nativeMeshChecks import CheckBiome, CheckHiddenCase
 from nativeMemoryChecks import CheckBuilderMemory
 from nativeMenuChecks import CheckNativeMenus
+from nativeScrollChecks import CheckScrollingLifetime, CheckScrollIntegration
 from nativeLightingChecks import CheckLightReads
 from advancedOverlayChecks import CheckAdvancedOverlay
 from nativeWorldChecks import CheckWorldSettings
+from checkLayeredFsCompatibility import CheckCandidate as CheckLayeredFs, InjectPath
 
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_ARM, UC_HOOK_CODE
 from unicorn.arm_const import (UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3,
@@ -414,15 +416,23 @@ def Main():
     parser.add_argument('--overlay-symbols', type=Path, required=True)
     parser.add_argument('--overlay-background', action='store_true')
     parser.add_argument('--texture-romfs', type=Path, required=True)
+    parser.add_argument('--layeredfs-exheader', type=Path, help='Check layout and execute all settings checks after Luma path injection')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     stock, code = args.reference_code.read_bytes(), args.patched_code.read_bytes()
+    codeHash = hashlib.sha256(code).hexdigest()
     assert hashlib.sha256(stock).hexdigest() == '902ccd5a06d59797c52976b2905dc56a5ca0a868021432fcc7eb127ba3320d65'
+    layeredFs = None
+    if args.layeredfs_exheader:
+        exheader = args.layeredfs_exheader.read_bytes()
+        layeredFs = CheckLayeredFs(stock, code, exheader)
+        code = InjectPath(code, exheader)
     symbols = json.loads(args.symbols.read_text())
     layout = json.loads(args.symbols.with_name('state-layout.json').read_text())
     harness = CSettingsHarness(code, symbols, layout)
     worldChecks = CheckWorldSettings(harness, CSettingsHarness(args.world_baseline.read_bytes(), {}, layout)) if args.world_baseline else None
-    report = {'codeSha256': hashlib.sha256(code).hexdigest(), 'divisionCases': CheckDivision(harness),
+    report = {'codeSha256': codeHash, 'executedCodeSha256': hashlib.sha256(code).hexdigest(),
+        'layeredFs': layeredFs, 'divisionCases': CheckDivision(harness),
         'visualGateCases': CheckVisuals(harness), 'terrainLoaderCases': CheckTextureLoader(harness, args.texture_romfs),
         'promptCases': CheckPrompts(harness),
         'overlayCases': CheckOverlay(harness, json.loads(args.overlay_symbols.read_text()), args.overlay_background),
@@ -430,6 +440,8 @@ def Main():
         'meshes': CheckMeshes(stock, code, symbols),
         'builderMemory': CheckBuilderMemory(code),
         'nativeMenus': CheckNativeMenus(harness),
+        'scrollLifetime': CheckScrollingLifetime(CSettingsHarness(code, symbols, layout)) if 'NativeScrollChanged' in symbols else None,
+        'scrollIntegrationCases': CheckScrollIntegration(CSettingsHarness(code, symbols, layout)) if 'NativeScrollChanged' in symbols else None,
         'lightReads': CheckLightReads(CSettingsHarness(stock, symbols, layout), harness) if 'ReadPackedLight' in symbols else None,
         'advancedOverlay': CheckAdvancedOverlay(harness),
         'scope': 'Actual ARM payload and native texture read/descriptor/mesh control flow, with controlled GPU, filesystem and world dependencies. Not a hardware FPS or long-session stability test.'}

@@ -55,6 +55,7 @@ NativeMapSelection = 0x3dcb78;
 NativeUpdateSelection = 0x3dc978;
 NativeSetScroll = 0x23faf0;
 NativeOriginalRender = 0x236bec;
+NativeLayoutScrollContainer = 0x42b1f8;
 NativeLockArena = 0x123170;
 NativeUnlockArena = 0x1231b0;
 NativeEffectiveRenderDistance = 0x6a6980;

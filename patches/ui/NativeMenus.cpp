@@ -31,6 +31,7 @@ void NativeMapSelection(void *screen);
 void NativeUpdateSelection(void *screen, unsigned int index);
 void NativeSetScroll(void *scroll, float value);
 void NativeOriginalRender(void *screen, int x, int y, unsigned int flags);
+void NativeLayoutScrollContainer(void *container);
 void TouchSetGuiColor(void *state, const float *color);
 void TouchBegin(void *tessellator, int vertices);
 void TouchDraw(void *tessellator, void *material);
@@ -98,6 +99,7 @@ namespace NativeMenus {
     struct TMenu {
         unsigned char *screen;
         EPage page;
+        bool scrollLayoutPending;
         TRow rows[21];
         unsigned int selections[7];
         float scrollOffsets[7];
@@ -105,7 +107,11 @@ namespace NativeMenus {
     };
 
     static_assert(sizeof(TMenu) == 404, "Native menu descriptor budget changed");
+    static_assert(__builtin_offsetof(TMenu, scrollLayoutPending) == 5, "Scroll deferral must use existing padding");
+    static_assert(__builtin_offsetof(TMenu, rows) == 8, "Native row layout changed");
     static_assert(sizeof(TEntry) == 8, "Native control specification budget changed");
+
+    void (*const scrollListenerVtable[])(unsigned char *) = {nullptr, nullptr, NativeScrollChanged};
 
     constexpr unsigned int menuButtonId = 0x2000;
     constexpr unsigned int firstButtonId = 0x1000;
@@ -130,6 +136,7 @@ NativeMenus::TMenu *NativeMenus::GetMenu(TState &state) {
 
         menu->screen = nullptr;
         menu->activeDropdown = nullptr;
+        menu->scrollLayoutPending = false;
         for (auto &selection : menu->selections) {
             selection = 0;
         }
@@ -248,6 +255,7 @@ bool NativeMenus::UpdateRow(TState &state, unsigned int row, const char *label) 
 void NativeMenus::BuildRows(TState &state, TMenu &menu) {
     auto *screen = menu.screen;
     menu.activeDropdown = nullptr;
+    menu.scrollLayoutPending = false;
     NativeClearReferences(screen + 344);
     NativeClearReferences(screen + 308);
     //Release pane and navigation ownership before allocating replacement rows.
@@ -389,6 +397,7 @@ void NativeMenus::ForgetScreen(unsigned char *screen) {
         auto *menu = static_cast<TMenu *>(runtimeControls->nativeMenu);
         if (menu->screen == screen) {
             menu->activeDropdown = nullptr;
+            menu->scrollLayoutPending = false;
             menu->screen = nullptr;
         }
     }
@@ -412,6 +421,8 @@ void NativeMenus::NativeInitializeOptions(unsigned char *screen) {
 
     menu->screen = screen;
     state->screen = screen;
+    auto *container = *reinterpret_cast<unsigned char **>(screen + 148);
+    Word(container, 96) = reinterpret_cast<unsigned int>(scrollListenerVtable);
     state->options = static_cast<unsigned char *>(ControlsGetOptions(*reinterpret_cast<void **>(screen + 4)));
     state->status[0] = 0;
     auto *titles = *reinterpret_cast<TString **>(screen + 392);
@@ -525,10 +536,29 @@ int NativeMenus::NativeOptionsNavigation(unsigned char *screen, int event, int d
     return NativeOriginalNavigation(screen, event, direction);
 }
 
+void NativeMenus::NativeScrollChanged(unsigned char *listener) {
+    //Only our container installs this listener. Layout must wait for scroll to return.
+    static_cast<TMenu *>(runtimeControls->nativeMenu)->scrollLayoutPending = true;
+}
+
+void NativeMenus::FlushScrollLayout(unsigned char *screen) {
+    auto *menu = static_cast<TMenu *>(runtimeControls->nativeMenu);
+    if (menu->scrollLayoutPending) {
+        menu->scrollLayoutPending = false;
+        NativeLayoutScrollContainer(*reinterpret_cast<void **>(screen + 148));
+    }
+}
+
 void NativeMenus::NativeRenderOptions(unsigned char *screen, int x, int y, unsigned int flags) {
-    NativeOriginalRender(screen, x, y, flags);
     const auto *state = runtimeControls;
-    if ((flags & 0x40) == 0 || screen[280] != 2 || state == nullptr || state->screen != screen) {
+    const auto customScreen = screen[280] == 2 && state != nullptr && state->screen == screen && state->nativeMenu != nullptr;
+    if (customScreen) {
+        //Render entry is outside the pane's active input and scroll callback stack.
+        FlushScrollLayout(screen);
+    }
+
+    NativeOriginalRender(screen, x, y, flags);
+    if ((flags & 0x40) == 0 || !customScreen) {
         return;
     }
 

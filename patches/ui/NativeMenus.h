@@ -6,6 +6,8 @@ namespace NativeMenus {
     bool UpdateRow(RuntimeControls::TState &state, unsigned int row, const char *label);
     void Poll(RuntimeControls::TState &state);
     void ForgetScreen(unsigned char *screen);
+    void FlushScrollLayout(unsigned char *screen);
+    extern "C" void NativeScrollChanged(unsigned char *listener);
     extern "C" void NativeInitializeMainMenu(unsigned char *screen);
     extern "C" void NativeInitializePauseMenu(unsigned char *screen);
     extern "C" void NativeInitializeOptions(unsigned char *screen);

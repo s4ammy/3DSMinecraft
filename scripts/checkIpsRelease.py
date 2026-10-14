@@ -5,9 +5,9 @@ from pathlib import Path
 
 
 projectPath = Path(__file__).resolve().parents[1]
-releaseVersion = "0.4.18"
-releaseIpsHash = "46bf9d96f15b281a046cd4d51a2f88053b67c27f9ad6bed7454a9d94546fcb09"
-releaseCodeHash = "8216d813b0f3af312a0724feb2503155e62e2be74ec393c58fb0bf34bb91a061"
+releaseVersion = "0.4.19"
+releaseIpsHash = "46196cd8db74a83d3fcfbf1ea09400a27ecb60b09ae0e726f151d03d8d907e2b"
+releaseCodeHash = "01138f3230df04cbc40bda87f920f9bac7e41706e8042b2e25695a6f4985ea34"
 
 
 def ReadReleaseVersion():

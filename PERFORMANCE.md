@@ -1,5 +1,27 @@
 # Performance validation
 
+## v0.4.19 native menu crash fixes
+
+`release/ips/v0.4.19/code.ips` promotes the tested compact UI, rendering fast paths, LayeredFS fix below and settings scrolling fix. Mod Settings scroll layout waits until render entry, after the active pane input call has returned. The private listener is installed only on the custom screen's container. Stock Options retains its original listener. The pending flag uses existing menu-state padding, so settings, bindings, MC3DS4 encoding, bootstrap, BSS and the 404-byte menu allocation are unchanged.
+
+Hardware dump `crash_dump_00000007.dmp` faults at `0x240DD0` while the native scroll setter dereferences the pane's listener at offset 60, which contains `0x5544`. Native analysis identified a lifetime hazard: the listener synchronously calls container layout, layout can delete and replace the pane, and the original normalized-scroll and clamp routines continue using that pane. The new callback records a pending layout instead of rebuilding during that stack.
+
+`scripts/nativeScrollChecks.py` executes the actual ARM scroll, listener, layout and clamp routines with controlled allocation and external dependencies. All eight old-behavior cases read freed pane memory; four cases that model allocation-header reuse reproduce the dump's exact fault PC. All eight candidate cases complete with zero stale reads. Another 13 integration cases verify custom-only installation, layout before rendering, pending-state consumption and screen cleanup. This establishes the reproduced lifetime hazard and its fix; the hardware dump alone does not prove the sequence of heap reuse.
+
+The full ARM settings suite, LayeredFS path injection, rendering fast-path checks, five host CTests and byte-for-byte native rebuild reproducibility pass. Hidden, muted Azahar completed 21 cycles across all seven pages, using touch/controller page selection, scrollbar drags and dropdown cancellation, then ten exits and reopenings with live screen-stack references checked. A camera sensitivity change was also exercised. Stock Options opened with its original listener intact. The user confirmed the fixed IPS works on hardware after replacing the previous SD-card patch. This is a limited startup/settings check; broad hardware coverage and long-session stability remain unverified. Private evidence is under `analysis-codex-2/settings-crash7-20261014/`.
+
+An earlier diagnostic emulator run also failed after leaving settings at the current-screen button-release dispatch (`0x3E8980`), rather than the pane listener. That run used unsupported single-step/breakpoint handling. Its cause remains unconfirmed and it is recorded separately from dump 7; the fresh 21-cycle run and ten exit/reopen cycles did not reproduce it.
+
+## 2026-10-14 LayeredFS path collision fix candidate
+
+`release/experiments/layeredfs-fix-20261014/code.ips` fixes the native-menu payload's collision with Luma's LayeredFS path storage. The existing bootstrap declares read-only data ending at `0xA28464`; Luma writes its 39-byte redirected-file path there after applying IPS. The earlier native-menu candidates and published IPS placed the compact dictation-binding table at that same address. Hardware dump `crash_dump_00000006.dmp` reaches `CStringLength` at `0x2FE9B4` with the invalid pointer `0x2F3A666C`, the bytes `lf:/`.
+
+The builder now reserves 40 aligned bytes for Luma and repacks the table at `0xA2848C`. Packaging rejects writes into the path reservation and checks that it remains unused. The text-side LayeredFS reservation, bootstrap metadata, BSS, settings, bindings and MC3DS4 encoding are unchanged. This candidate retains the compact UI, original grey switches and previously tested rendering fast paths. No new bootstrap is required for this fix. The original v0.4.18 release has the collision; v0.4.19 includes the fix.
+
+`scripts/checkLayeredFsCompatibility.py` checks the reservation against the compatible bootstrap ExHeader, preserves text-side loader padding, and executes all nine input-builder cases both before and after injecting Luma's path: 18 passing cases. Its negative control reproduces the published patch's exact hardware PC, LR, invalid read and table register. The full ARM settings suite and rendering fast-path suite also pass after path injection. Five host CTests, ten release-validation tests and native payload reproducibility pass. These checks model the path write, not a full Luma boot; console validation remains pending. Separate diagnosis evidence is under `analysis-codex-2/layeredfs-collision-20261014/`.
+
+Run the settings suite with `--layeredfs-exheader BASELINE_EXHEADER` to include this loader-side write in future native-menu validation.
+
 ## 2026-10-14 green enabled switches withdrawn
 
 The green-switch experiment is withdrawn. User testing showed green leaking into the sliders and scrollbar. The widget tint writes and boolean-renderer instruction override have been removed, restoring Minecraft's original toggle drawing. Settings, bindings, save format and the other compact-UI changes are unchanged. Use `release/experiments/compact-ui-20261014/code.ips`, not the retained green-switch experiment.

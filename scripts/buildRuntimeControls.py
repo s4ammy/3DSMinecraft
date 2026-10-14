@@ -9,6 +9,9 @@ from pathlib import Path
 
 projectPath = Path(__file__).resolve().parents[1]
 referenceHash = "902ccd5a06d59797c52976b2905dc56a5ca0a868021432fcc7eb127ba3320d65"
+#Luma writes a 39-byte LayeredFS path after the declared read-only segment.
+lumaPathAddress = 0xa28464
+lumaPathCapacity = 40
 reservations = [
     ("Dictation", 0x41efa8, 0x3a48, ".text.BuildDictationBindings"),
     ("Main", 0x4a403c, 0x1350, ".text.BuildKeyboardBindings"),
@@ -23,7 +26,7 @@ nativeReservations = reservations + [
     ("ChunkTail", 0x7bbf28, 0x7bc084 - 0x7bbf28, None),
     ("LightRead", 0x384900, 0xac, ".text.ReadPackedLight"),
     ("Overlay", 0x35cae0, 0x35d5f0 - 0x35cae0, ".text.DrawDebugOverlay"),
-    ("ReadOnly", 0xa28464, 0xa29000 - 0xa28464, None),
+    ("ReadOnly", lumaPathAddress + lumaPathCapacity, 0xa29000 - lumaPathAddress - lumaPathCapacity, None),
 ]
 entryPoints = ["RuntimeInputHook", "RuntimeHudDestroyHook", "RuntimeAccessoryHook", "RuntimeShutdownHook",
                "BuildControlRows", "HandleControlButton", "DispatchControlRelease", "DestroyControlRows", "DrawRuntimeControls",
