@@ -2,9 +2,11 @@
 
 This guide is for the European base game v0.1.0 and update v9.11.0. The patcher reads your original CIAs and makes Luma `code.ips` files. For first-time setup, it can also make the bootstrap CIAs that you install once. It never changes your input files.
 
+For a step-by-step introduction without source-build details, start with [NOOB_GUIDE.md](NOOB_GUIDE.md). Crash investigations are collected separately in [docs/crashes](docs/crashes/README.md).
+
 ## Experimental chunk settings
 
-The single release asset, `release/ips/v0.4.18/code.ips`, is the tested `chunk-settings-20261014` candidate and includes the earlier native settings improvements below. It is for the European v9.11.0 update, not the base-only game. Open **Mod Settings > Display** and scroll below the visual preset. The four new controls use native dropdowns:
+The single release asset, `release/ips/v0.4.19/code.ips`, includes the tested chunk-settings candidate and the native settings improvements below. It is for the European v9.11.0 update, not the base-only game. Open **Mod Settings > Display** and scroll below the visual preset. The four controls use native dropdowns:
 
 | Setting | Choices | Default |
 | --- | --- | --- |
@@ -181,13 +183,13 @@ The executable is in `build` on Linux or `build\Release` on Windows. MinGW-w64 a
 
 Pushing to `main` builds both platforms and publishes the version from `CMakeLists.txt`. Published releases are left alone, so bump that version before the next release. An explicit matching `v*` tag also works, including prereleases. Other branches, pull requests, and manual runs produce build artifacts only.
 
-Release jobs publish the Windows and Linux patcher packages, one `code.ips`, and their combined `SHA256SUMS.txt`. Only `release/ips/v0.4.18/code.ips` is allowed through `.gitignore`; older variants, experiments and local reports stay ignored. The workflow never uploads `code-*.ips` files.
+Release jobs publish the Windows and Linux patcher packages, one `code.ips`, and their combined `SHA256SUMS.txt`. Only `release/ips/v0.4.19/code.ips` is allowed through `.gitignore`; older variants, experiments and local reports stay ignored. The workflow never uploads `code-*.ips` files.
 
 To prepare the current validated candidate, rebuild it as described above and verify it against the private stock executable:
 
 ```sh
 python3 scripts/prepareIpsRelease.py --ips build-chunk-settings/fixture/code.ips \
-    --stock-code /path/to/stock/code.bin --output release/ips/v0.4.18
+    --stock-code /path/to/stock/code.bin --output release/ips/v0.4.19
 python3 scripts/checkIpsRelease.py
 ```
 
@@ -195,4 +197,4 @@ Preparation refuses to overwrite an existing `code.ips`. It checks the stock exe
 
 For a new release, validate the new candidate first, then update `CMakeLists.txt`, the version and hashes in `scripts/checkIpsRelease.py`, and the exact version-directory exceptions in `.gitignore` together. Add only the new version's `code.ips` under `release/`. Original CIAs, executables and seeds remain private.
 
-For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.18`. On Windows, use `--platform windows --binary-dir build/Release`. Output goes to `dist`.
+For a local package, run `python scripts/packageRelease.py --platform linux --binary-dir build --version v0.4.19`. On Windows, use `--platform windows --binary-dir build/Release`. Output goes to `dist`.

@@ -1,26 +1,10 @@
 # Performance validation
 
-## v0.4.19 native menu crash fixes
+## v0.4.19 validation
 
-`release/ips/v0.4.19/code.ips` promotes the tested compact UI, rendering fast paths, LayeredFS fix below and settings scrolling fix. Mod Settings scroll layout waits until render entry, after the active pane input call has returned. The private listener is installed only on the custom screen's container. Stock Options retains its original listener. The pending flag uses existing menu-state padding, so settings, bindings, MC3DS4 encoding, bootstrap, BSS and the 404-byte menu allocation are unchanged.
+`release/ips/v0.4.19/code.ips` promotes the tested compact UI and rendering fast paths. The full ARM settings and rendering suites, five host CTests, ten release-validation tests and byte-for-byte native rebuild reproducibility pass. User hardware testing confirms startup and settings navigation; broader hardware coverage and long-session stability remain unverified.
 
-Hardware dump `crash_dump_00000007.dmp` faults at `0x240DD0` while the native scroll setter dereferences the pane's listener at offset 60, which contains `0x5544`. Native analysis identified a lifetime hazard: the listener synchronously calls container layout, layout can delete and replace the pane, and the original normalized-scroll and clamp routines continue using that pane. The new callback records a pending layout instead of rebuilding during that stack.
-
-`scripts/nativeScrollChecks.py` executes the actual ARM scroll, listener, layout and clamp routines with controlled allocation and external dependencies. All eight old-behavior cases read freed pane memory; four cases that model allocation-header reuse reproduce the dump's exact fault PC. All eight candidate cases complete with zero stale reads. Another 13 integration cases verify custom-only installation, layout before rendering, pending-state consumption and screen cleanup. This establishes the reproduced lifetime hazard and its fix; the hardware dump alone does not prove the sequence of heap reuse.
-
-The full ARM settings suite, LayeredFS path injection, rendering fast-path checks, five host CTests and byte-for-byte native rebuild reproducibility pass. Hidden, muted Azahar completed 21 cycles across all seven pages, using touch/controller page selection, scrollbar drags and dropdown cancellation, then ten exits and reopenings with live screen-stack references checked. A camera sensitivity change was also exercised. Stock Options opened with its original listener intact. The user confirmed the fixed IPS works on hardware after replacing the previous SD-card patch. This is a limited startup/settings check; broad hardware coverage and long-session stability remain unverified. Private evidence is under `analysis-codex-2/settings-crash7-20261014/`.
-
-An earlier diagnostic emulator run also failed after leaving settings at the current-screen button-release dispatch (`0x3E8980`), rather than the pane listener. That run used unsupported single-step/breakpoint handling. Its cause remains unconfirmed and it is recorded separately from dump 7; the fresh 21-cycle run and ten exit/reopen cycles did not reproduce it.
-
-## 2026-10-14 LayeredFS path collision fix candidate
-
-`release/experiments/layeredfs-fix-20261014/code.ips` fixes the native-menu payload's collision with Luma's LayeredFS path storage. The existing bootstrap declares read-only data ending at `0xA28464`; Luma writes its 39-byte redirected-file path there after applying IPS. The earlier native-menu candidates and published IPS placed the compact dictation-binding table at that same address. Hardware dump `crash_dump_00000006.dmp` reaches `CStringLength` at `0x2FE9B4` with the invalid pointer `0x2F3A666C`, the bytes `lf:/`.
-
-The builder now reserves 40 aligned bytes for Luma and repacks the table at `0xA2848C`. Packaging rejects writes into the path reservation and checks that it remains unused. The text-side LayeredFS reservation, bootstrap metadata, BSS, settings, bindings and MC3DS4 encoding are unchanged. This candidate retains the compact UI, original grey switches and previously tested rendering fast paths. No new bootstrap is required for this fix. The original v0.4.18 release has the collision; v0.4.19 includes the fix.
-
-`scripts/checkLayeredFsCompatibility.py` checks the reservation against the compatible bootstrap ExHeader, preserves text-side loader padding, and executes all nine input-builder cases both before and after injecting Luma's path: 18 passing cases. Its negative control reproduces the published patch's exact hardware PC, LR, invalid read and table register. The full ARM settings suite and rendering fast-path suite also pass after path injection. Five host CTests, ten release-validation tests and native payload reproducibility pass. These checks model the path write, not a full Luma boot; console validation remains pending. Separate diagnosis evidence is under `analysis-codex-2/layeredfs-collision-20261014/`.
-
-Run the settings suite with `--layeredfs-exheader BASELINE_EXHEADER` to include this loader-side write in future native-menu validation.
+Crash causes, resolutions and diagnostic limits now live in [docs/crashes](docs/crashes/README.md), including the [LayeredFS startup record](docs/crashes/layeredfs-path.md) and [settings scrolling record](docs/crashes/settings-scroll.md).
 
 ## 2026-10-14 green enabled switches withdrawn
 
@@ -75,7 +59,7 @@ Focused ARM tests cover all 144 allowed combinations, 4,032 hook fragments, guar
 
 Private muted Azahar loaded the copied world with the 49-offset neighborhood and an accepted render radius of three, then exercised movement, jumping and Save & Quit. A fresh packaged-IPS process loaded the saved position with nine offsets, map radius eight and one deferred builder, broke blocks with visible mesh updates and saved again. Selecting render radius three with nearby radius one correctly produced an accepted render radius of one. These runs used low-memory textures, hidden weather/particles and the diagnostic overlay; they do not establish that maximum distances are safe with every texture setting or world.
 
-The mixed render-1/nearby-3 test exposed a separate loading dependency: progress remained at 0.752357 in loading state 2 while the tick counter advanced. The final executable requests radius two for that combination, keeping the selected visible distance at 16 blocks through the render-frame cap. A fresh private run reached loading state 16/progress 1 and entered the saved world with this configuration and one builder. The report distinguishes these final checks from the earlier maximum/minimum runs. No loading thresholds or sound-preload stages were bypassed.
+The mixed-distance loading investigation and its final validation are recorded separately in [chunk-loading-stall.md](docs/crashes/chunk-loading-stall.md).
 
 ## 2026-10-14 settings and diagnostics experiment
 
@@ -97,11 +81,11 @@ Custom is derived from the individual values, not a fourth stored preset. Preset
 
 The Full overlay adds largest-free-payload figures for Main, Graphics and Stream, sampled by walking each native free list under its arena mutex. They are not alignment-aware allocation guarantees, and the nested heaps must not be added together. The optional graph shows the last 32 displayed-frame intervals, with a 33.3 ms guide and a 100 ms display ceiling. Graph and heap diagnostics have overhead that remains unmeasured on hardware.
 
-The historical 2 MiB allocation failure is consistent with texture storage: its resource kind follows the native texture allocation path. The exact ultimate caller has not been established. Upload staging uses a different memory kind and is not evidence for that failure's cause. The candidate does not claim to fix general fragmentation, GPU resource lifetime, or every low-memory failure.
+The separate [graphics-allocation record](docs/crashes/graphics-allocation.md) tracks the remaining ownership and fragmentation questions.
 
 Validation reports ship separately from the IPS. Native checks cover menu value mapping, quantization, 14 scroll-memory cases, dropdown focus isolation, 72 overlay layouts, graph history and locked free-list traversal, alongside the retained texture, prompt, mesh and builder tests. Host tests cover version-2 migration, camera curves and presets. Private emulator evidence is under `analysis-codex-2/settings-next-20261014/`; hardware timing, long sessions and multiplayer remain outstanding.
 
-Private muted Azahar also exercised shared B capture, preset changes and restart notices, native slider changes, page-scroll restoration, visible frame-time graph rendering, block breaking with mesh updates, movement, jumping, item pickup and Save & Quit. A fresh process using the packaged IPS reloaded the edited terrain, position and collected dirt. The final mixed touch/controller dropdown guard passed both native tests and emulator navigation. No monitored allocation failure was observed. The diagnostic repeat did not reproduce a request of at least 2 MiB, so it did not identify the historical failing texture's ultimate caller. These flows are correctness smoke tests, not timing or net memory-saving measurements. The packaged emulator report distinguishes early revisions from final-executable checks.
+Private muted Azahar also exercised shared B capture, preset changes and restart notices, native slider changes, page-scroll restoration, visible frame-time graph rendering, block breaking with mesh updates, movement, jumping, item pickup and Save & Quit. A fresh process using the packaged IPS reloaded the edited terrain, position and collected dirt. The final mixed touch/controller dropdown guard passed both native tests and emulator navigation. These flows are correctness smoke tests, not timing or net memory-saving measurements. The packaged emulator report distinguishes early revisions from final-executable checks. Allocation diagnostics are recorded separately in [graphics-allocation.md](docs/crashes/graphics-allocation.md).
 
 ## v0.4.18 chunk-builder memory headroom
 
@@ -109,13 +93,13 @@ The update caps the native deferred chunk-builder pool at four instead of ten, w
 
 There is no graphics-to-main fallback, heap-budget increase, GPU-buffer relocation, shared cross-thread scratch array or new persistent allocation. Bootstrap metadata, BSS size, save format and base-only outputs are unchanged from v0.4.17.
 
-The native regression checks twelve cap inputs, including zero and negative error values, eight create/clear cycles with controlled resource constructors and allocators, and 120 empty-pool retries with unchanged state. Existing settings, texture, prompt and mesh regressions also pass against the exact candidate. `scripts/nativeMemoryChecks.py` is run by `scripts/checkRuntimeSettings.py`. These checks do not prove GPU lifetime safety or hardware performance. The earlier fragmentation and 2 MiB allocation failures remain historical failures, not demonstrated fixes.
+The native regression checks twelve cap inputs, including zero and negative error values, eight create/clear cycles with controlled resource constructors and allocators, and 120 empty-pool retries with unchanged state. Existing settings, texture, prompt and mesh regressions also pass against the exact candidate. `scripts/nativeMemoryChecks.py` is run by `scripts/checkRuntimeSettings.py`. These checks do not prove GPU lifetime safety or hardware performance. See [allocation investigation limits](docs/crashes/graphics-allocation.md).
 
 In private muted Old 3DS-mode Azahar runs loading the same copied world and settings, graphics free space was 2,102,256 bytes before this change and 5,125,632 bytes with it. The largest free block rose from 1,884,812 to 5,109,020 bytes. This is about 2.88 MiB more free graphics memory in those snapshots, not a guaranteed gain in every world or an FPS measurement. After cycling all four control modes and all six settings pages, the candidate still had 5,125,672 free bytes with a largest block of 4,935,980 bytes. A consistent paused graphics allocation-list read found one remaining 491,600-byte scratch allocation in that arena. The main and graphics heaps are nested and must not be added together.
 
 The production candidate also passed block breaking with visible mesh updates, walking, jumping, item pickup, saving back to the title screen and same-process world reload. The broken terrain and collected dirt persisted, and the control mode, bindings and settings were unchanged. After reload the graphics arena had 5,628,900 free bytes with a largest block of 5,467,100 bytes; the parent main arena had 5,844,260 free bytes with a largest block of 2,095,880 bytes. This does not establish that every arena avoids fragmentation. No monitored native allocation failure occurred during this smoke test. Scripted menu navigation needed retries and included debugger pauses, so this is not a loading or UI timing benchmark. The copied source saves remained unchanged.
 
-The baseline's large-allocation diagnostic did not reproduce the earlier 2 MiB request during its world load, Controls visit and Save & Quit. Its ultimate caller therefore remains unresolved. The candidate retains the original allocation/failure policy and does not claim to fix fragmentation generally. The first candidate's full main-heap inventory was deliberately interrupted because it was too intrusive; it is not counted as a completed validation run. Evidence is retained under `analysis-codex-2/memory-stability-20261013/` in the private reversal workspace. Canonical ownership names and annotations were saved through IDA and the dashboard export refreshed separately from these runtime results.
+Diagnostic outcomes and their limitations are recorded in [graphics-allocation.md](docs/crashes/graphics-allocation.md). Evidence is retained under `analysis-codex-2/memory-stability-20261013/` in the private reversal workspace. Canonical ownership names and annotations were saved through IDA and the dashboard export refreshed separately from these runtime results.
 
 ## v0.4.17 settings and mesh work
 
@@ -127,17 +111,17 @@ Validation also passes 1,204 native integer-division cases, 25 visual-gate cases
 
 Private Azahar testing uses Old 3DS mode, an isolated virtual display, muted audio and copied user data. It covers the settings pages, custom camera chords, unbinding a camera direction, Jump on B, persistence across a fresh process, ABXY/chord camera movement in a loaded world, and an in-world cycle through all four modes. Low-memory textures loaded an existing world and skipped 1 MiB of source atlas payload in that run. This counter is not a measured reduction in resident graphics memory. Console timing, long sessions, multiplayer, physical accessory input and graphics-allocation stability remain unverified.
 
-The existing graphics-arena failure is not claimed fixed. Earlier sampled evidence showed a failed 51,840-byte request with 656,188 free bytes but no block larger than 17,100 bytes, demonstrating fragmentation in that run. A separate in-world Options transition requested 2 MiB and failed. The latest low-memory/ABXY run completed its Controls visit without hitting a monitored native allocation-failure breakpoint; afterwards the graphics arena had 1,653,032 free bytes, with a largest block of 1,567,004 bytes. A repeat pass does not resolve the earlier failure. An experimental parent-heap fallback is excluded: synthetic success is insufficient evidence for safe live graphics ownership. The current patch retains native allocation/failure policy and reports this limitation. Evidence: `analysis-codex-2/runtime-settings-20261013/` in the private reversal workspace.
+The graphics-arena investigation and follow-up evidence are kept in [graphics-allocation.md](docs/crashes/graphics-allocation.md).
 
 The dated sections below record separate research packages, not additional optimizations silently included in v0.4.17. In particular, the experimental lighting queues and broad helper-call substitutions are not part of this build.
 
 ## 2026-10-03: block rebuild stage measurements
 
-The saved mesh-latency investigation measured six block edits in private muted Azahar. Worker rebuilds took about 220-222 ms, including about 174 ms of tessellation; mesh installation took under 0.5 ms. These guest elapsed intervals include waits and diagnostic overhead and do not establish physical Old 3DS or GPU presentation timing. One diagnostic run hit an unresolved allocation failure; its evidence is retained separately from the successful repeats. A separate hidden-face prototype passed 258 native control-flow cases. A matched six-edit comparison reduced median worker time from 220.53 to 218.51 ms, about 0.9%; this small experiment remains outside test 3 while larger gains are investigated. Test 3 remains unchanged and hardware testing is pending.
+The saved mesh-latency investigation measured six block edits in private muted Azahar. Worker rebuilds took about 220-222 ms, including about 174 ms of tessellation; mesh installation took under 0.5 ms. These guest elapsed intervals include waits and diagnostic overhead and do not establish physical Old 3DS or GPU presentation timing. A separate [allocation diagnostic](docs/crashes/graphics-allocation.md) is excluded from the successful repeats. A separate hidden-face prototype passed 258 native control-flow cases. A matched six-edit comparison reduced median worker time from 220.53 to 218.51 ms, about 0.9%; this small experiment remains outside test 3 while larger gains are investigated. Test 3 remains unchanged and hardware testing is pending.
 
 ## 2026-10-03: corrected full test and biome lookup optimization
 
-The current performance test 3 retains touch controls, background block rebuilding, late-frame completion and all earlier optimization experiments. Test 2 fixed an IPS compatibility defect that left 82 incorrect executable bytes on the actual private legacy bootstrap. The defect reproduced an Azahar startup fault; its contribution to the user's hardware lag is not yet established. Test 3 changes only the touch-controller slot comparison, preventing old menu presses from being replayed when camera input selects an inactive controller.
+The current performance test 3 retains touch controls, background block rebuilding, late-frame completion and all earlier optimization experiments. Test 2's compatibility correction is recorded in [legacy-bootstrap-ips.md](docs/crashes/legacy-bootstrap-ips.md). Test 3 changes only the touch-controller slot comparison, preventing old menu presses from being replayed when camera input selects an inactive controller.
 
 A new guarded biome lookup uses the game's current chunk cache directly. Valid hits take 26 versus 103 guest instructions. A controlled 6,400-query refresh trace, including cache misses, uses about 40.6% fewer lookup instructions. This is not a whole-game FPS percentage. The helper adds no allocations or persistent cache, and misses retain the original path with some extra instructions.
 
@@ -221,7 +205,7 @@ Separate exact NBT key-lookup and compound END-allocation experiments passed the
 
 Private evidence: `analysis-codex-2/global-performance-v050-20260911/`, with emulator runs in `world-loading-audit-20260911/emulator-runs/global-*`. The directory's `v050` label is a research name, not the release version. Hardware timing, long sessions, multiplayer, new-world-generation timings and broader world coverage remain unverified. No new quality reductions are introduced, but exhaustive absence of regressions is not established.
 
-A later report concerns the published v0.3.0 build on Old 3DS: B can immediately close an interacted container, and night-time play can lag or crash. Neither is claimed fixed here. B/menu bindings and the relevant cancel callback remain unchanged in v0.4.10; the suspected opening-release ownership problem needs end-to-end validation and a separate fix. The night-time crash needs its own dump and reproduction, not attribution to unshipped optimization code.
+Related v0.3.0 reports are documented separately in [container-release.md](docs/crashes/container-release.md) and [night-time.md](docs/crashes/night-time.md).
 
 ## v0.4.9 world-loading improvement
 
@@ -282,7 +266,7 @@ Evidence and executable-dependent harnesses: `analysis-codex-2/performance-v047-
 | Read six 1 KiB compressed slices | 12 allocations / 12,388 copied bytes | 6 allocations / 6,244 copied bytes | Test allocator and copy counters |
 | Inflate six 32 KiB streams | 294,912 copied bytes | 98,304 copied bytes | 192 KiB less copying |
 
-The first two examples are not ARM11 cycle counts. The storage figures include other copies in the tested routine, not just the removed operation. They are not SD-card throughput measurements. The decompression comparison uses the corrected scratch-buffer control described below.
+The first two examples are not ARM11 cycle counts. The storage figures include other copies in the tested routine, not just the removed operation. They are not SD-card throughput measurements. The decompression comparison uses the [corrected scratch-buffer control](docs/crashes/inflate-scratch.md).
 
 Some paths gain nothing or have minor overhead. The block-cache miss example increases from 60 to 64 instructions with its backing resolver stubbed. A 1 x 1 climate request increases from 168 to 176 instructions. Shared or insufficient-capacity inflate output retains the original path plus checks. No claim of universally faster execution is made.
 
@@ -295,12 +279,6 @@ Some paths gain nothing or have minor overhead. The block-cache miss example inc
 - Production patcher: both control-profile output checksums, IPS round trips, payload hashes and rejection of altered guarded routines or occupied padding pass.
 
 The authored Voronoi cache passed 512 cases but is excluded from the default build. It saved about 6.4% of instructions for a 16 x 16 example and 8.5% for 28 x 28, but increased the 1 x 1 case from 1,724 to 2,288 instructions.
-
-## v0.4.5 scratch-buffer correction
-
-The previous hook stored scratch ownership at `SP+0x18`. The live `z_stream` occupies `SP+0x10` through `SP+0x47`, and `SP+0x18` is `total_in`. Real zlib resets and increments that counter, corrupting the pointer. A six-stream regression test reproduced an invalid write in the old build.
-
-v0.4.6 uses `SP+0x48`, outside the stream but still inside the existing frame. It does not grow the stack frame or add a global scratch buffer. The fixed control and candidate match stock decompression in the 128 tests. The old build is unsuitable as a known-good decompression timing baseline.
 
 ## Emulator and hardware limits
 

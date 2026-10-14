@@ -65,9 +65,10 @@ def PackageRelease():
             shutil.copy2(binaryPath / (relativeName + extension), stagingPath / (relativeName + extension))
             (stagingPath / (relativeName + extension)).chmod(0o755)
 
-        for name in ["README.md", "GUIDE.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "PERFORMANCE.md", "DEBUG_OVERLAY.md", "THIRD_PARTY.md", "LICENSE", "mc3ds-gui.py", "gui-requirements.txt"]:
+        for name in ["README.md", "NOOB_GUIDE.md", "GUIDE.md", "COMPATIBILITY.md", "INPUTS_EXPLAINED.md", "PATCHES.md", "PERFORMANCE.md", "DEBUG_OVERLAY.md", "THIRD_PARTY.md", "LICENSE", "mc3ds-gui.py", "gui-requirements.txt"]:
             shutil.copy2(projectPath / name, stagingPath / name)
 
+        shutil.copytree(projectPath / "docs/crashes", stagingPath / "docs/crashes")
         shutil.copytree(projectPath / "assets/fonts", stagingPath / "assets/fonts")
         shutil.copy2(projectPath / "licenses/GPL-3.0.txt", stagingPath / "licenses/GPL-3.0.txt")
         for archivePath in sources:

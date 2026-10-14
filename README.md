@@ -4,7 +4,7 @@
 
 This patcher makes a Luma `code.ips` file for Minecraft: New Nintendo 3DS Edition. It adds Old 3DS controls and memory changes, with in-game control, camera and visual settings for the update.
 
-**Start with the [setup guide](GUIDE.md).** It covers the one-time console setup, the Python GUI or PC commands, and copying the patch to your SD card.
+**New to this? Start with the [beginner guide](NOOB_GUIDE.md).** The [detailed setup guide](GUIDE.md) covers PC commands, source builds and release packaging.
 
 You need your own original European Minecraft base CIA and a console with CFW. For first-time setup, add `--bootstrap-cia` to make the base CIA, and make the matching update CIA if you use the update. Install those CIAs once with FBI. No game files, keys, or seeds are included.
 
@@ -20,9 +20,9 @@ The patcher supports the European base game v0.1.0 and update v9.11.0. Use the o
 
 The current controls revision adds persistent per-mode gameplay/menu button bindings, button chords, unbinding, and reset-to-defaults to the native update settings page. It preserves the existing performance patches and bootstrap layout. The base-only settings UI and physical Circle Pad Pro validation are not included in this revision. See [controls](INPUTS_EXPLAINED.md).
 
-Version 0.4.19 includes the compact native settings UI and rendering fast paths, fixes the LayeredFS startup collision, and defers scroll layout to prevent a settings-pane lifetime fault. User hardware testing confirms startup and settings navigation work with the fixed IPS. The build remains experimental, with broader hardware and long-session testing outstanding. See [validation and limits](PERFORMANCE.md#v0419-native-menu-crash-fixes).
+Version 0.4.19 includes the compact native settings UI, rendering fast paths and the latest stability fixes. User hardware testing confirms startup and settings navigation. The build remains experimental, with broader hardware and long-session testing outstanding. See [validation](PERFORMANCE.md#v0419-validation) and [crash investigations and resolutions](docs/crashes/README.md).
 
-It retains v0.4.18's reduction of about 2.8 MiB in chunk-builder scratch reservations. This is memory headroom, not a demonstrated fix for every graphics-allocation crash or a proven FPS gain. See [chunk-builder validation](PERFORMANCE.md#v0418-chunk-builder-memory-headroom).
+It retains v0.4.18's reduction of about 2.8 MiB in chunk-builder scratch reservations. This is memory headroom, not a proven FPS gain. See [chunk-builder validation](PERFORMANCE.md#v0418-chunk-builder-memory-headroom) and [allocation limits](docs/crashes/graphics-allocation.md).
 
 For more detail, see [compatibility and tested hashes](COMPATIBILITY.md), [controls](INPUTS_EXPLAINED.md), [included patches](PATCHES.md), [performance results](PERFORMANCE.md), and [overlay details](DEBUG_OVERLAY.md). Source builds and release packaging are covered in the [guide](GUIDE.md#build-from-source).
 
@@ -44,6 +44,8 @@ patches/
     world/         Chunk, block, lighting and item-pickup patches
     performance/   Shared performance, allocation and worker hooks
     experimental/  Research candidates not enabled by the release
+docs/
+    crashes/       Incident causes, resolutions, evidence and open questions
 ```
 
 Payload builders and ARM regression checks live in `scripts/`; host-side tests live in `tests/`. Regenerate embedded payload headers with their builders rather than editing the byte arrays in `src/data/`. Build instructions and script entry points are unchanged.

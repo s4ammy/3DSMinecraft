@@ -38,7 +38,8 @@ if(MINGW)
 endif()
 
 install(TARGETS mc3ds-patcher RUNTIME DESTINATION .)
-install(FILES README.md GUIDE.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md PERFORMANCE.md DEBUG_OVERLAY.md THIRD_PARTY.md LICENSE mc3ds-gui.py gui-requirements.txt DESTINATION .)
+install(FILES README.md NOOB_GUIDE.md GUIDE.md INPUTS_EXPLAINED.md COMPATIBILITY.md PATCHES.md PERFORMANCE.md DEBUG_OVERLAY.md THIRD_PARTY.md LICENSE mc3ds-gui.py gui-requirements.txt DESTINATION .)
+install(DIRECTORY docs/crashes DESTINATION docs)
 install(DIRECTORY assets/fonts DESTINATION assets)
 
 include(CTest)

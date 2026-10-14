@@ -20,7 +20,7 @@ python3 scripts/buildNativeMenuPrototype.py --stock-code /path/to/stock-code.bin
 
 ## Stable v0.4.18 controls
 
-The European v9.11.0 update includes all four modes and settings in one `code.ips`. Open **Options > Controls**. A new installation starts with L + Circle Pad and the defaults below. The existing in-world Options allocation failure is still under investigation; use the title-screen page if that occurs.
+The European v9.11.0 update includes all four modes and settings in one `code.ips`. Open **Options > Controls** for the patcher-generated baseline. A new installation starts with L + Circle Pad and the defaults below. Allocation troubleshooting is kept in [graphics-allocation.md](docs/crashes/graphics-allocation.md).
 
 Select **Mode** to cycle through L + Circle Pad, Circle Pad Pro, Touch stick, and ABXY camera. Each mode remembers its own bindings and camera/touch tuning. Select **Page** to cycle through Gameplay binds, Menu binds, Camera, Touch stick, Display, and Binding tools. Select an action, release the activating input, hold the desired button or chord, and release it to finish. Multiple actions may share the same button or chord, including the camera modifier. Assigning a shared binding leaves the other assignments unchanged and activates all matching actions in that context. A held chord suppresses its individual component actions until released. Conflicting actions are your responsibility.
 

@@ -23,9 +23,9 @@ Version 0.4.17 includes four modes, including ABXY camera, in **Options > Contro
 
 The v0.4.18 patcher-generated baseline retains those settings and caps deferred chunk builders at four to reduce scratch-buffer reservations. The native immediate builder and empty-pool retry remain. That baseline needs no bootstrap reinstall, new settings format or allocator fallback. Physical Old 3DS loading throughput and long-session allocation stability remain unverified.
 
-The single downloadable v0.4.19 `code.ips` includes dedicated **Mod Settings**, the compact native UI, configurable chunk distances/builders and rendering fast paths. It reserves Luma's LayeredFS path storage and defers settings scroll layout until the pane's input calls return. User hardware testing confirms the fixed startup and settings navigation. It saves settings as `MC3DS4`; older patches cannot read that format. It is update-only, retains the same bootstrap requirements, and does not establish a general graphics-allocation fix. The PC patcher's embedded update payload remains the earlier baseline used for bootstrap creation.
+The single downloadable v0.4.19 `code.ips` includes dedicated **Mod Settings**, the compact native UI, configurable chunk distances/builders and rendering fast paths. It saves settings as `MC3DS4`; older patches cannot read that format. It is update-only and retains the same bootstrap requirements. The PC patcher's embedded update payload remains the earlier baseline used for bootstrap creation. See [crash investigations and resolutions](docs/crashes/README.md) for the v0.4.19 fixes and remaining diagnostic limits.
 
-The build remains experimental. Editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar. The current scroll fix passed 21 page-interaction cycles and ten exit/reopen cycles. An earlier Options transition hit an unresolved native 2 MiB graphics-allocation failure, and an earlier breakpoint diagnostic failed during current-screen release. Those separate causes remain unconfirmed; broader hardware and long-session stability are unverified. See [current validation](PERFORMANCE.md#v0419-native-menu-crash-fixes) and [runtime-controls validation](PATCHES.md#in-game-controls-v0416).
+The build remains experimental. Editing, persistence, gameplay remapping and short mode-switch tests passed in hidden, muted Azahar. Broader hardware and long-session stability are unverified. See [current validation](PERFORMANCE.md#v0419-validation), the [allocation investigation](docs/crashes/graphics-allocation.md) and [runtime-controls validation](PATCHES.md#in-game-controls-v0416).
 
 | File | SHA-256 |
 | --- | --- |
@@ -41,7 +41,7 @@ Version 0.3.1 changed extended-header text metadata so Luma places its LayeredFS
 
 ## Limits
 
-Version 0.4.6 fixes a v0.4.5 regression: the reusable scratch pointer overlapped zlib's consumed-byte counter and could cause invalid writes or frees. Do not use v0.4.5 as a known-good saved-world loading baseline. Comparisons use stock decompression and a v0.4.5 control with that bug corrected. Version 0.4.6 additionally optimizes block lookup, deterministic climate work, compressed-record copying and inflate output. See [the validation report](PERFORMANCE.md); these changes still require Old 3DS hardware testing.
+Version 0.4.6 optimizes block lookup, deterministic climate work, compressed-record copying and inflate output. See [the validation report](PERFORMANCE.md) and [decompression correction record](docs/crashes/inflate-scratch.md); these changes still require Old 3DS hardware testing.
 
 Version 0.4.7 adds direct raw-light lookup, per-call inflate-context reuse and exact modulo-eight masking in biome-color generation. It keeps the same bootstrap requirements and LayeredFS shader files. The experimental biome-ready cache is excluded because a controlled neighbor-availability test produced stale colors. Context reuse reduced allocator traffic but raised peak live test allocations by up to 32 KiB in the sampled cases; low-memory hardware behavior remains unverified.
 
@@ -49,7 +49,7 @@ Other regions and revisions are unverified. `--allow-similar` remains experiment
 
 Azahar checks covered base-game CPP controls and connection failures, plus update startup, saved-world loading, movement, camera, and dropping. The update's CPP gameplay has not been checked in Azahar. Emulation cannot confirm the accessory's physical IR link, battery, calibration, or sleep/wake behavior.
 
-Versions through 0.3.0 placed patch hooks after the declared text extent. Luma LayeredFS used the same location for its runtime payload, so enabling a LayeredFS replacement could overwrite those hooks and crash on hardware. The bootstrap ExHeader declares the corrected extent and preserves the SD-application capability. The generated IPS reserves space after its hooks for Luma. The replacement assets themselves do not need modification.
+Current bootstrap metadata and IPS padding support Luma LayeredFS. The earlier layout correction and v0.3.0 installation requirements are recorded in [legacy-layeredfs.md](docs/crashes/legacy-layeredfs.md).
 
 Version 0.4.8 adds the [custom FPS/debug overlay](DEBUG_OVERLAY.md) to the European update without changing the bootstrap requirements, tail padding or shaders. The old broken frame-timer renderer is replaced, not re-enabled unchanged. The base-game build is unchanged.
 
@@ -61,4 +61,4 @@ Version 0.4.10 adds only the four-byte-aligned allocation search fast path relat
 
 Performance varies by world. Multiplayer, long sessions, and a steady minimum frame rate have not been established. The update optimizations, custom overlay and Circle Pad Pro profile still need Old 3DS hardware testing.
 
-Version 0.4.11 changes the default-profile common container back handler and three derived handlers, including crafting, to ignore releases. A 16-byte helper closes the container from its menu_cancel press action after the original selected-slot cleanup. Both versions use existing input-payload padding, with no new BSS, bootstrap metadata, shader or save changes. CPP executable hashes remain unchanged. This does not address the separately reported night-time slowdown/crash. A public v0.3.0-only install must first be checked for compatible bootstrap metadata before using the current IPS workflow.
+Version 0.4.11 retains the default-profile [container input correction](docs/crashes/container-release.md). A public v0.3.0-only install must first be checked for compatible bootstrap metadata before using the current IPS workflow.
